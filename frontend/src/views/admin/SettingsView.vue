@@ -10,7 +10,7 @@
 
       <!-- Settings Form -->
       <form v-else @submit.prevent="saveSettings" class="flex h-full min-h-0 flex-col gap-6" novalidate>
-        <!-- Tab Navigation -->
+        <!-- Tab navigation and save action stay outside the scrolling content. -->
         <div class="settings-tabs-shell">
           <nav
             ref="settingsTabsScroll"
@@ -47,6 +47,39 @@
               </button>
             </div>
           </nav>
+          <div v-show="activeTab !== 'backup'" class="settings-save-actions">
+            <button
+              type="submit"
+              :disabled="saving || loadFailed"
+              class="btn btn-primary w-full sm:w-auto"
+            >
+              <svg
+                v-if="saving"
+                class="h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              {{
+                saving
+                  ? t("admin.settings.saving")
+                  : t("admin.settings.saveSettings")
+              }}
+            </button>
+          </div>
         </div>
 
         <div class="settings-content flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto rounded-sm">
@@ -8869,41 +8902,6 @@
         <div v-show="activeTab === 'backup'">
           <BackupSettings />
         </div>
-
-        <!-- Save dock — sticky so long tabs never require scrolling to the end -->
-        <div v-show="activeTab !== 'backup'" class="settings-save-dock">
-          <button
-            type="submit"
-            :disabled="saving || loadFailed"
-            class="btn btn-primary"
-          >
-            <svg
-              v-if="saving"
-              class="h-4 w-4 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{
-              saving
-                ? t("admin.settings.saving")
-                : t("admin.settings.saveSettings")
-            }}
-          </button>
-        </div>
         </div>
       </form>
 
@@ -13334,7 +13332,7 @@ watch(
 }
 
 .settings-tabs-shell {
-  @apply shrink-0 overflow-hidden rounded-sm border-b border-gray-200 bg-white dark:border-dark-800;
+  @apply flex shrink-0 flex-col gap-2 rounded-sm border-b border-gray-200 bg-white p-2 dark:border-dark-800 sm:flex-row sm:items-center sm:gap-3;
 }
 
 .settings-content > * {
@@ -13342,7 +13340,7 @@ watch(
 }
 
 .settings-tabs-scroll {
-  @apply overflow-x-auto;
+  @apply min-w-0 overflow-x-auto sm:flex-1;
   --tabs-fade-left: 0px;
   --tabs-fade-right: 0px;
   -ms-overflow-style: none;
@@ -13374,7 +13372,7 @@ watch(
 
 .settings-tab {
   height: var(--control-height);
-  flex: 1 0 auto;
+  flex: 0 0 auto;
   @apply relative flex items-center justify-center gap-2 whitespace-nowrap rounded-t-sm px-3 text-sm font-medium leading-5 text-gray-500 outline-none transition-colors duration-150 dark:text-gray-400;
 }
 
@@ -13421,9 +13419,9 @@ watch(
   }
 }
 
-/* ============ 系统设置 保存浮标 ============ */
-.settings-save-dock {
-  @apply sticky bottom-3 z-20 ml-auto flex w-fit items-center;
+/* ============ 系统设置 保存操作 ============ */
+.settings-save-actions {
+  @apply flex shrink-0 items-center border-t border-gray-200 pt-2 dark:border-dark-800 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0;
 }
 </style>
 
