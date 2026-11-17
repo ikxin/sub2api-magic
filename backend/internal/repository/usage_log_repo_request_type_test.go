@@ -1187,3 +1187,27 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 	})
 
 }
+
+func TestUsageTrendPartialBucketsUseExactRange(t *testing.T) {
+	for _, granularity := range []string{"hour", "day"} {
+		t.Run(granularity, func(t *testing.T) {
+			db, mock := newSQLMock(t)
+			repo := &usageLogRepository{sql: db}
+			end := time.Date(2026, 11, 16, 7, 42, 13, 456000000, time.UTC)
+			start := end.Add(-24 * time.Hour)
+			// Whole-bucket aggregates would drop the first partial bucket and
+			// include out-of-range requests from the final bucket.
+			mock.ExpectQuery("FROM usage_logs\\s+WHERE created_at >= \\$1 AND created_at < \\$2").
+				WithArgs(start, end).
+				WillReturnRows(sqlmock.NewRows([]string{
+					"date", "requests", "input_tokens", "output_tokens", "cache_creation_tokens",
+					"cache_read_tokens", "total_tokens", "cost", "actual_cost",
+				}).AddRow("2026-11-16", 2, 10, 20, 0, 0, 30, 0.1, 0.1))
+			trend, err := repo.GetUsageTrendWithFilters(context.Background(), start, end, granularity, 0, 0, 0, 0, "", nil, nil, nil)
+			require.NoError(t, err)
+			require.Len(t, trend, 1)
+			require.EqualValues(t, 2, trend[0].Requests)
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}

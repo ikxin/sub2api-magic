@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
 type accountUsageCodexProbeRepo struct {
@@ -51,6 +53,18 @@ func TestShouldRefreshOpenAICodexSnapshot(t *testing.T) {
 
 	if !shouldRefreshOpenAICodexSnapshot(&Account{}, &UsageInfo{FiveHour: nil, SevenDay: &UsageProgress{}}, now) {
 		t.Fatal("expected missing 5h snapshot to require refresh")
+	}
+
+	freeAccount := &Account{
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Credentials: map[string]any{"plan_type": "free"},
+	}
+	if shouldRefreshOpenAICodexSnapshot(freeAccount, &UsageInfo{SevenDay: &UsageProgress{}}, now) {
+		t.Fatal("expected free account with a long-window snapshot to skip refresh without a 5h window")
+	}
+	if !shouldRefreshOpenAICodexSnapshot(freeAccount, &UsageInfo{}, now) {
+		t.Fatal("expected free account without a monthly snapshot to require refresh")
 	}
 
 	staleAt := now.Add(-(openAIProbeCacheTTL + time.Minute)).Format(time.RFC3339)
@@ -203,6 +217,82 @@ func TestAccountUsageService_GetOpenAIUsage_DoesNotPromoteCodexExtraToRateLimit(
 	case got := <-repo.rateLimitCh:
 		t.Fatalf("不应将已耗尽的 codex extra 持久化为运行时限流状态: %v", got)
 	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+type codexUsageWindowStatsRepoStub struct {
+	usageBatchLogRepoStub
+	starts []time.Time
+}
+
+func (r *codexUsageWindowStatsRepoStub) GetAccountWindowStats(_ context.Context, _ int64, start time.Time) (*usagestats.AccountStats, error) {
+	r.starts = append(r.starts, start)
+	return &usagestats.AccountStats{Requests: 193, Tokens: 42_600_000, Cost: 1.11}, nil
+}
+
+func TestAccountUsageService_GetOpenAIUsage_MonthlyFreeWindow(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name        string
+		plan        string
+		minutes     int
+		wantMonthly bool
+		wantWindow  time.Duration
+	}{
+		{name: "free monthly snapshot", plan: "free", minutes: 30 * 24 * 60, wantMonthly: true, wantWindow: 30 * 24 * time.Hour},
+		{name: "free upstream 28-day window", plan: "free", minutes: 28 * 24 * 60, wantMonthly: true, wantWindow: 28 * 24 * time.Hour},
+		{name: "free legacy snapshot without duration", plan: " Free ", wantMonthly: true, wantWindow: 30 * 24 * time.Hour},
+		{name: "free legacy weekly duration", plan: "free", minutes: 7 * 24 * 60, wantMonthly: true, wantWindow: 30 * 24 * time.Hour},
+		{name: "paid keeps 5h and weekly windows", plan: "plus", minutes: 7 * 24 * 60},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			now := time.Now().UTC().Truncate(time.Second)
+			resetAt := now.Add(48 * time.Hour)
+			fiveHourResetAt := now.Add(time.Hour)
+			repo := &codexUsageWindowStatsRepoStub{}
+			svc := &AccountUsageService{usageLogRepo: repo}
+			account := &Account{
+				ID:          9001,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Credentials: map[string]any{"plan_type": test.plan},
+				Extra: map[string]any{
+					"codex_5h_used_percent":   0.0,
+					"codex_5h_reset_at":       fiveHourResetAt.Format(time.RFC3339),
+					"codex_7d_used_percent":   79.0,
+					"codex_7d_reset_at":       resetAt.Format(time.RFC3339),
+					"codex_7d_window_minutes": test.minutes,
+				},
+			}
+
+			usage, err := svc.getOpenAIUsage(context.Background(), account, false)
+			if err != nil {
+				t.Fatalf("getOpenAIUsage() error = %v", err)
+			}
+			if test.wantMonthly {
+				if usage.FiveHour != nil || usage.SevenDay != nil || usage.ThirtyDay == nil {
+					t.Fatalf("expected only a monthly window, got %#v", usage)
+				}
+				monthly := usage.ThirtyDay
+				if monthly.Utilization != 79 || monthly.ResetsAt == nil || !monthly.ResetsAt.Equal(resetAt) {
+					t.Fatalf("monthly quota snapshot was not preserved: %#v", monthly)
+				}
+				if monthly.WindowStats == nil || monthly.WindowStats.Requests != 193 || monthly.WindowStats.Cost != 1.11 {
+					t.Fatalf("expected monthly window stats, got %#v", monthly.WindowStats)
+				}
+				if len(repo.starts) != 1 || !repo.starts[0].Equal(resetAt.Add(-test.wantWindow)) {
+					t.Fatalf("expected one query from the monthly window start %v, got %v", resetAt.Add(-test.wantWindow), repo.starts)
+				}
+			} else {
+				if usage.ThirtyDay != nil || usage.FiveHour == nil || usage.SevenDay == nil {
+					t.Fatalf("expected paid 5h and weekly windows, got %#v", usage)
+				}
+				if len(repo.starts) != 2 || !repo.starts[0].Equal(fiveHourResetAt.Add(-5*time.Hour)) || !repo.starts[1].Equal(resetAt.Add(-7*24*time.Hour)) {
+					t.Fatalf("unexpected paid window stats queries: %v", repo.starts)
+				}
+			}
+		})
 	}
 }
 

@@ -140,6 +140,33 @@ func ParseInUserLocation(layout, value, userTZ string) (time.Time, error) {
 	return time.ParseInLocation(layout, value, loc)
 }
 
+// ParseRangeBoundary accepts a local calendar date or an exact RFC3339 timestamp.
+// End dates include the selected day; timestamp bounds remain unchanged.
+func ParseRangeBoundary(value, userTZ string, end bool) (time.Time, error) {
+	if t, err := ParseInUserLocation("2006-01-02", value, userTZ); err == nil {
+		if end {
+			t = t.AddDate(0, 0, 1)
+		}
+		return t, nil
+	}
+	t, err := ParseInUserLocation(time.RFC3339Nano, value, userTZ)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return t.In(NowInUserLocation(userTZ).Location()), nil
+}
+
+// FormatRangeBoundary preserves exact times and the inclusive calendar-date API.
+func FormatRangeBoundary(t time.Time, end bool) string {
+	if t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0 && t.Nanosecond() == 0 {
+		if end {
+			t = t.AddDate(0, 0, -1)
+		}
+		return t.Format("2006-01-02")
+	}
+	return t.Format(time.RFC3339Nano)
+}
+
 // NowInUserLocation returns the current time in the user's timezone.
 // If userTZ is empty or invalid, falls back to the configured server timezone.
 func NowInUserLocation(userTZ string) time.Time {

@@ -31,7 +31,7 @@ func NewDashboardHandler(dashboardService *service.DashboardService, aggregation
 	}
 }
 
-// parseTimeRange parses start_date, end_date query parameters
+// parseTimeRange parses calendar dates or exact RFC3339 timestamps.
 // Uses user's timezone if provided, otherwise falls back to server timezone
 func parseTimeRange(c *gin.Context) (time.Time, time.Time) {
 	userTZ := c.Query("timezone") // Get user's timezone from request
@@ -42,7 +42,7 @@ func parseTimeRange(c *gin.Context) (time.Time, time.Time) {
 	var startTime, endTime time.Time
 
 	if startDate != "" {
-		if t, err := timezone.ParseInUserLocation("2006-01-02", startDate, userTZ); err == nil {
+		if t, err := timezone.ParseRangeBoundary(startDate, userTZ, false); err == nil {
 			startTime = t
 		} else {
 			startTime = timezone.StartOfDayInUserLocation(now.AddDate(0, 0, -7), userTZ)
@@ -52,8 +52,8 @@ func parseTimeRange(c *gin.Context) (time.Time, time.Time) {
 	}
 
 	if endDate != "" {
-		if t, err := timezone.ParseInUserLocation("2006-01-02", endDate, userTZ); err == nil {
-			endTime = t.Add(24 * time.Hour) // Include the end date
+		if t, err := timezone.ParseRangeBoundary(endDate, userTZ, true); err == nil {
+			endTime = t
 		} else {
 			endTime = timezone.StartOfDayInUserLocation(now.AddDate(0, 0, 1), userTZ)
 		}
@@ -282,8 +282,8 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"trend":       trend,
-		"start_date":  startTime.Format("2006-01-02"),
-		"end_date":    endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+		"start_date":  timezone.FormatRangeBoundary(startTime, false),
+		"end_date":    timezone.FormatRangeBoundary(endTime, true),
 		"granularity": granularity,
 	})
 }
@@ -374,8 +374,8 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"models":     stats,
-		"start_date": startTime.Format("2006-01-02"),
-		"end_date":   endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+		"start_date": timezone.FormatRangeBoundary(startTime, false),
+		"end_date":   timezone.FormatRangeBoundary(endTime, true),
 	})
 }
 
@@ -456,8 +456,8 @@ func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"groups":     stats,
-		"start_date": startTime.Format("2006-01-02"),
-		"end_date":   endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+		"start_date": timezone.FormatRangeBoundary(startTime, false),
+		"end_date":   timezone.FormatRangeBoundary(endTime, true),
 	})
 }
 
@@ -482,8 +482,8 @@ func (h *DashboardHandler) GetAPIKeyUsageTrend(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"trend":       trend,
-		"start_date":  startTime.Format("2006-01-02"),
-		"end_date":    endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+		"start_date":  timezone.FormatRangeBoundary(startTime, false),
+		"end_date":    timezone.FormatRangeBoundary(endTime, true),
 		"granularity": granularity,
 	})
 }
@@ -513,8 +513,8 @@ func (h *DashboardHandler) GetUserUsageTrend(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"trend":       trend,
-		"start_date":  startTime.Format("2006-01-02"),
-		"end_date":    endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+		"start_date":  timezone.FormatRangeBoundary(startTime, false),
+		"end_date":    timezone.FormatRangeBoundary(endTime, true),
 		"granularity": granularity,
 	})
 }
@@ -550,8 +550,8 @@ func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 		End   string `json:"end"`
 		Limit int    `json:"limit"`
 	}{
-		Start: startTime.UTC().Format(time.RFC3339),
-		End:   endTime.UTC().Format(time.RFC3339),
+		Start: startTime.UTC().Format(time.RFC3339Nano),
+		End:   endTime.UTC().Format(time.RFC3339Nano),
 		Limit: limit,
 	})
 	cacheKey := string(keyRaw)
@@ -572,8 +572,8 @@ func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 		"total_actual_cost": ranking.TotalActualCost,
 		"total_requests":    ranking.TotalRequests,
 		"total_tokens":      ranking.TotalTokens,
-		"start_date":        startTime.Format("2006-01-02"),
-		"end_date":          endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+		"start_date":        timezone.FormatRangeBoundary(startTime, false),
+		"end_date":          timezone.FormatRangeBoundary(endTime, true),
 	}
 	dashboardUsersRankingCache.Set(cacheKey, payload)
 	c.Header("X-Snapshot-Cache", "miss")
@@ -755,7 +755,7 @@ func (h *DashboardHandler) GetUserBreakdown(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"users":      stats,
-		"start_date": startTime.Format("2006-01-02"),
-		"end_date":   endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+		"start_date": timezone.FormatRangeBoundary(startTime, false),
+		"end_date":   timezone.FormatRangeBoundary(endTime, true),
 	})
 }

@@ -62,6 +62,7 @@
         {{ t('admin.accounts.openaiQuotaReset.reset') }}
       </button>
 
+      <!-- 点数与邀请入口暂不展示。
       <button
         type="button"
         data-testid="codex-credits"
@@ -74,6 +75,7 @@
         <span class="truncate tabular-nums">{{ creditsDisplay }}</span>
       </button>
       <OpenAIReferralCell :account="account" />
+      -->
     </div>
 
     <div v-if="creditsCacheWarning" class="text-[10px] text-amber-600 dark:text-amber-400">
@@ -191,7 +193,7 @@ import {
   type OpenAIQuotaResetResult
 } from '@/api/admin/accounts'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import OpenAIReferralCell from '@/components/account/OpenAIReferralCell.vue'
+// import OpenAIReferralCell from '@/components/account/OpenAIReferralCell.vue'
 
 const props = defineProps<{
   account: Account
@@ -225,6 +227,7 @@ const readCachedCredits = (account: Account) => {
   return { credits, fetched_at: snapshot.fetched_at }
 }
 const creditsData = ref(readCachedCredits(props.account))
+/* 点数展示相关格式化暂不启用。
 const creditsDisplay = computed(() => {
   const credits = creditsData.value?.credits
   if (!credits) return '—'
@@ -243,6 +246,7 @@ const creditsButtonTitle = computed(() => {
     time: new Date(fetchedAt * 1000).toLocaleString()
   })}`
 })
+*/
 
 const updateCredits = (usage: OpenAIQuotaUsage | null) => {
   creditsData.value = usage?.credits ? { credits: usage.credits, fetched_at: usage.fetched_at } : null

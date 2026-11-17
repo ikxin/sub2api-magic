@@ -181,6 +181,45 @@ export function formatDateLocalInput(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+export function getTodayRange(): { start: string; end: string } {
+  const today = formatDateLocalInput(new Date())
+  return { start: today, end: today }
+}
+
+export function getLast24HoursRange(now = new Date()): { start: string; end: string } {
+  return {
+    start: new Date(now.getTime() - DAY_MS).toISOString(),
+    end: now.toISOString()
+  }
+}
+
+export function isLast24HoursRange(start: string, end: string): boolean {
+  return start.includes('T') && end.includes('T') &&
+    new Date(end).getTime() - new Date(start).getTime() === DAY_MS
+}
+
+/** Keep date inputs in local calendar dates without discarding query timestamps. */
+export function toDateInput(value: string): string {
+  return value.includes('T') ? formatDateLocalInput(new Date(value)) : value
+}
+
+/** Date-only end values include that calendar day; timestamps are exact bounds. */
+export function toRangeBoundary(value: string | undefined, end = false): string | undefined {
+  if (!value) return undefined
+  if (value.includes('T')) return new Date(value).toISOString()
+  const date = new Date(`${value}T00:00:00`)
+  if (end) date.setDate(date.getDate() + 1)
+  return date.toISOString()
+}
+
+export function getRangeGranularity(start: string, end: string): 'day' | 'hour' {
+  const startTime = new Date(start.includes('T') ? start : `${start}T00:00:00`).getTime()
+  const endTime = new Date(end.includes('T') ? end : `${end}T00:00:00`).getTime()
+  return endTime - startTime <= DAY_MS ? 'hour' : 'day'
+}
+
 /**
  * 格式化为 datetime-local 控件值（YYYY-MM-DDTHH:mm，使用本地时间）
  */

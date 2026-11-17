@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 
@@ -19,29 +19,33 @@ const messages: Record<string, string> = {
   'dates.selectDateRange': 'Select date range'
 }
 
-vi.mock('vue-i18n', () => ({
+vi.mock('vue-i18n', async () => ({
+  ...await vi.importActual<typeof import('vue-i18n')>('vue-i18n'),
   useI18n: () => ({
     t: (key: string) => messages[key] ?? key,
     locale: ref('en')
   })
 }))
 
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+const now = new Date('2026-11-16T07:42:13.456Z')
+const start = '2026-11-15T07:42:13.456Z'
+let wrapper: ReturnType<typeof mount<typeof DateRangePicker>>
 
 describe('DateRangePicker', () => {
-  it('uses last 24 hours as the default recognized preset', () => {
-    const now = new Date()
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+  })
+  afterEach(() => {
+    wrapper?.unmount()
+    vi.useRealTimers()
+  })
 
-    const wrapper = mount(DateRangePicker, {
+  it('recognizes a supplied last 24 hours range', () => {
+    wrapper = mount(DateRangePicker, {
       props: {
-        startDate: formatLocalDate(yesterday),
-        endDate: formatLocalDate(now)
+        startDate: start,
+        endDate: now.toISOString()
       },
       global: {
         stubs: {
@@ -53,14 +57,19 @@ describe('DateRangePicker', () => {
     expect(wrapper.text()).toContain('Last 24 Hours')
   })
 
-  it('emits range updates with last24Hours preset when applied', async () => {
-    const now = new Date()
-    const today = formatLocalDate(now)
+  it('does not label yesterday and today as last 24 hours', () => {
+    wrapper = mount(DateRangePicker, {
+      props: { startDate: '2026-11-15', endDate: '2026-11-16' },
+      global: { stubs: { Icon: true } }
+    })
+    expect(wrapper.find('.date-picker-trigger').text()).not.toContain('Last 24 Hours')
+  })
 
-    const wrapper = mount(DateRangePicker, {
+  it('emits range updates with last24Hours preset when applied', async () => {
+    wrapper = mount(DateRangePicker, {
       props: {
-        startDate: today,
-        endDate: today
+        startDate: '2026-11-16',
+        endDate: '2026-11-16'
       },
       global: {
         stubs: {
@@ -78,10 +87,8 @@ describe('DateRangePicker', () => {
     await presetButton!.trigger('click')
     await wrapper.find('.date-picker-apply').trigger('click')
 
-    const nowAfterClick = new Date()
-    const yesterdayAfterClick = new Date(nowAfterClick.getTime() - 24 * 60 * 60 * 1000)
-    const expectedStart = formatLocalDate(yesterdayAfterClick)
-    const expectedEnd = formatLocalDate(nowAfterClick)
+    const expectedStart = start
+    const expectedEnd = now.toISOString()
 
     expect(wrapper.emitted('update:startDate')?.[0]).toEqual([expectedStart])
     expect(wrapper.emitted('update:endDate')?.[0]).toEqual([expectedEnd])
@@ -92,5 +99,36 @@ describe('DateRangePicker', () => {
         preset: 'last24Hours'
       }
     ])
+  })
+
+  it('recalculates the rolling window when applying a draft later', async () => {
+    wrapper = mount(DateRangePicker, {
+      props: { startDate: start, endDate: now.toISOString() },
+      global: { stubs: { Icon: true } }
+    })
+    await wrapper.find('.date-picker-trigger').trigger('click')
+    vi.setSystemTime(new Date('2026-11-16T08:00:00.000Z'))
+    await wrapper.find('.date-picker-apply').trigger('click')
+    expect(wrapper.emitted('change')?.[0]).toEqual([{
+      startDate: '2026-11-15T08:00:00.000Z',
+      endDate: '2026-11-16T08:00:00.000Z',
+      preset: 'last24Hours'
+    }])
+  })
+
+  it('shows local date inputs and switches to calendar days after an edit', async () => {
+    wrapper = mount(DateRangePicker, {
+      props: { startDate: start, endDate: now.toISOString() },
+      global: { stubs: { Icon: true } }
+    })
+    await wrapper.find('.date-picker-trigger').trigger('click')
+    const inputs = wrapper.findAll<HTMLInputElement>('input[type="date"]')
+    const expectedEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    expect(inputs[1]!.element.value).toBe(expectedEnd)
+    await inputs[0]!.setValue('2026-11-02')
+    await wrapper.find('.date-picker-apply').trigger('click')
+    expect(wrapper.emitted('change')?.[0]).toEqual([{
+      startDate: '2026-11-02', endDate: expectedEnd, preset: null
+    }])
   })
 })

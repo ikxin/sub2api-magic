@@ -5,16 +5,11 @@
       v-if="windowStats && (windowStats.requests > 0 || windowStats.tokens > 0)"
       class="mb-0.5 flex items-center"
     >
-      <div class="flex items-center gap-1.5 text-[9px] text-gray-500 dark:text-gray-400">
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
-          {{ formatRequests }} req
-        </span>
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
-          {{ formatTokens }}
-        </span>
+      <div class="flex items-center gap-1.5 whitespace-nowrap text-[9px] text-gray-500 dark:text-gray-400">
         <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
-          A ${{ formatAccountCost }}
+          {{ formatRequests }} req / {{ formatTokens }} / ${{ formatAccountCost }}
         </span>
+        <!-- 用户侧费用暂不展示。
         <span
           v-if="windowStats?.user_cost != null"
           class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
@@ -22,6 +17,7 @@
         >
           U ${{ formatUserCost }}
         </span>
+        -->
         <span
           v-if="estimatedTotalCost != null"
           data-test="estimated-total-cost"
@@ -223,7 +219,7 @@ const formatResetTime = computed(() => {
 // Window stats formatters
 const formatRequests = computed(() => {
   if (!props.windowStats) return ''
-  return formatCompactNumber(props.windowStats.requests, { allowBillions: false })
+  return formatCompactNumber(props.windowStats.requests, { allowBillions: false }).replace('K', 'k')
 })
 
 const formatTokens = computed(() => {
@@ -236,9 +232,11 @@ const formatAccountCost = computed(() => {
   return props.windowStats.cost.toFixed(2)
 })
 
+/* 用户侧费用暂不展示。
 const formatUserCost = computed(() => {
   if (!props.windowStats || props.windowStats.user_cost == null) return '0.00'
   return props.windowStats.user_cost.toFixed(2)
 })
+*/
 
 </script>

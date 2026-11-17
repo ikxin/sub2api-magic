@@ -2,13 +2,35 @@
   <div class="flex items-center gap-2">
     <!-- Rate Limit Display (429) - Two-line layout -->
     <div v-if="isRateLimited" class="flex flex-col items-center gap-1">
-      <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }}</span>
+      <div class="group relative">
+        <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }} | 429</span>
+        <!-- Tooltip -->
+        <div
+          class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
+        >
+          {{ t('admin.accounts.status.rateLimitedUntil', { time: formatDateTime(account.rate_limit_reset_at) }) }}
+          <div
+            class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
+          ></div>
+        </div>
+      </div>
       <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ rateLimitResumeText }}</span>
     </div>
 
     <!-- Overload Display (529) - Two-line layout -->
     <div v-else-if="isOverloaded" class="flex flex-col items-center gap-1">
-      <span class="badge text-xs badge-danger">{{ t('admin.accounts.status.overloaded') }}</span>
+      <div class="group relative">
+        <span class="badge text-xs badge-danger">{{ t('admin.accounts.status.overloaded') }} | 529</span>
+        <!-- Tooltip -->
+        <div
+          class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
+        >
+          {{ t('admin.accounts.status.overloadedUntil', { time: formatTime(account.overload_until) }) }}
+          <div
+            class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
+          ></div>
+        </div>
+      </div>
       <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ overloadCountdown }}</span>
     </div>
 
@@ -57,25 +79,6 @@
         <!-- 上方小三角 -->
         <div
           class="absolute bottom-full left-3 border-[6px] border-transparent border-b-gray-800 dark:border-b-gray-900"
-        ></div>
-      </div>
-    </div>
-
-    <!-- Rate Limit Indicator (429) -->
-    <div v-if="isRateLimited" class="group relative">
-      <span
-        class="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-      >
-        <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-        429
-      </span>
-      <!-- Tooltip -->
-      <div
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-      >
-        {{ t('admin.accounts.status.rateLimitedUntil', { time: formatDateTime(account.rate_limit_reset_at) }) }}
-        <div
-          class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
         ></div>
       </div>
     </div>
@@ -134,25 +137,6 @@
             class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
           ></div>
         </div>
-      </div>
-    </div>
-
-    <!-- Overload Indicator (529) -->
-    <div v-if="isOverloaded" class="group relative">
-      <span
-        class="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
-      >
-        <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-        529
-      </span>
-      <!-- Tooltip -->
-      <div
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-      >
-        {{ t('admin.accounts.status.overloadedUntil', { time: formatTime(account.overload_until) }) }}
-        <div
-          class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
-        ></div>
       </div>
     </div>
   </div>
@@ -286,6 +270,15 @@ const hasError = computed(() => {
   return props.account.status === 'error'
 })
 
+const errorStatusCode = computed(() => {
+  if (!hasError.value || !props.account.error_message) return null
+  // Match backend HTTP codes such as "(401)", "OAuth 401" and "Custom error code 403".
+  const match = props.account.error_message.match(
+    /\(([1-5]\d{2})\)|\b(?:HTTP(?:\/\d(?:\.\d)?)?|status(?:[_\s-]*code)?|(?:error[_\s-]*)?code|OAuth)\s*[:=]?\s*([1-5]\d{2})\b/i
+  )
+  return match?.[1] ?? match?.[2] ?? null
+})
+
 const isQuotaExceeded = computed(() => {
   const exceeded = (used?: number | null, limit?: number | null) =>
     typeof limit === 'number' && limit > 0 && typeof used === 'number' && used >= limit
@@ -341,7 +334,8 @@ const statusClass = computed(() => {
 // Computed: status text
 const statusText = computed(() => {
   if (hasError.value) {
-    return t('admin.accounts.status.error')
+    const text = t('admin.accounts.status.error')
+    return errorStatusCode.value ? `${text} | ${errorStatusCode.value}` : text
   }
   if (isTempUnschedulable.value) {
     return t('admin.accounts.status.tempUnschedulable')

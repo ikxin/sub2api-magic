@@ -17,7 +17,8 @@ vi.mock('@/utils/format', async () => {
   const actual = await vi.importActual<typeof import('@/utils/format')>('@/utils/format')
   return {
     ...actual,
-    formatCountdown: () => '1h'
+    formatCountdown: () => '1h',
+    formatCountdownWithSuffix: () => '1h later'
   }
 })
 
@@ -51,6 +52,53 @@ function makeAccount(overrides: Partial<Account>): Account {
 }
 
 describe('AccountStatusIndicator', () => {
+  it.each([
+    ['Authentication failed (401): invalid or expired credentials', ' | 401'],
+    ['OAuth 401 (no refresh_token): invalid token', ' | 401'],
+    ['Access forbidden (403): account may be suspended', ' | 403'],
+    ['Custom error code 418: upstream rejected request', ' | 418'],
+    ['Token refresh failed: HTTP 400: invalid_grant', ' | 400'],
+    ['Upstream returned status_code: 503', ' | 503'],
+    ['Stream timeout after 500 seconds for account 401', ''],
+    [null, '']
+  ])('merges the HTTP status into the error badge for %s', (errorMessage, suffix) => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({ status: 'error', error_message: errorMessage })
+      }
+    })
+
+    expect(wrapper.find('.badge-danger').text()).toBe(`admin.accounts.status.error${suffix}`)
+    if (errorMessage) {
+      expect(wrapper.text()).toContain(errorMessage)
+    }
+  })
+
+  it('does not append a stale error code to a healthy status', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({ error_message: 'Authentication failed (401): expired token' })
+      }
+    })
+
+    expect(wrapper.find('.badge-success').text()).toBe('admin.accounts.status.active')
+    expect(wrapper.text()).not.toContain('401')
+  })
+
+  it('shows overload status and code in one badge with the recovery tooltip', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({ overload_until: '2099-07-11T13:00:00Z' })
+      },
+      global: { stubs: { Icon: true } }
+    })
+
+    expect(wrapper.find('.badge-danger').text()).toBe('admin.accounts.status.overloaded | 529')
+    expect(wrapper.text().match(/529/g)).toHaveLength(1)
+    expect(wrapper.text()).toContain('1h later')
+    expect(wrapper.text()).toContain('admin.accounts.status.overloadedUntil')
+  })
+
   it('Claude 5 系列模型限流时显示 Opus 和 Sonnet 的短别名', () => {
     const wrapper = mount(AccountStatusIndicator, {
       props: {
@@ -130,8 +178,10 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.find('.badge-warning').text()).toBe('admin.accounts.status.rateLimited')
+    expect(wrapper.find('.badge-warning').text()).toBe('admin.accounts.status.rateLimited | 429')
+    expect(wrapper.text().match(/429/g)).toHaveLength(1)
     expect(wrapper.text()).toContain('admin.accounts.status.rateLimitedAutoResume')
+    expect(wrapper.text()).toContain('admin.accounts.status.rateLimitedUntil')
     expect(wrapper.text()).not.toContain('admin.accounts.status.tempUnschedulable')
   })
 

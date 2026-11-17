@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AccountUsageCell from '../AccountUsageCell.vue'
+import UsageProgressBar from '../UsageProgressBar.vue'
 import type { Account } from '@/types'
 
 const { getUsage } = vi.hoisted(() => ({
@@ -256,6 +257,45 @@ describe('AccountUsageCell', () => {
     const updatedAccount = wrapper.emitted<Account[]>('account-updated')?.[0]?.[0]
     expect(updatedAccount?.id).toBe(9003)
     expect(updatedAccount?.ollama_cloud_usage?.auto_refresh_enabled).toBe(false)
+  })
+
+  it('OpenAI Free 只显示月度用量并按月度费用计算预计额度', async () => {
+    getUsage.mockResolvedValue({
+      five_hour: null,
+      seven_day: null,
+      thirty_day: {
+        utilization: 79,
+        resets_at: '2099-03-31T12:00:00Z',
+        remaining_seconds: 86400,
+        window_stats: { requests: 193, tokens: 42_600_000, cost: 1.11 }
+      }
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: makeAccount({
+          id: 6753,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: { plan_type: 'free' }
+        })
+      },
+      global: {
+        stubs: { OpenAIQuotaResetCell: true, AccountQuotaInfo: true }
+      }
+    })
+
+    await flushPromises()
+
+    const bars = wrapper.findAllComponents(UsageProgressBar)
+    expect(bars).toHaveLength(1)
+    expect(bars[0]!.props('label')).toBe('30d')
+    expect(bars[0]!.props('utilization')).toBe(79)
+    expect(bars[0]!.props('resetsAt')).toBe('2099-03-31T12:00:00Z')
+    expect(bars[0]!.props('estimatedTotalCost')).toBeCloseTo(1.11 * 100 / 79)
+    expect(wrapper.text()).toContain('193 req / 42.6M / $1.11')
+    expect(wrapper.find('[data-test="estimated-total-cost"]').exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it.each([
@@ -729,7 +769,7 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('7d|36|900')
   })
 
-  it('仅为 OpenAI OAuth 7d 窗口计算预计总费用', async () => {
+  it('为 OpenAI OAuth 5h 和 7d 窗口计算预计总费用', async () => {
     getUsage.mockResolvedValue({
       five_hour: {
         utilization: 25,
@@ -762,7 +802,7 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('5h|none')
+    expect(wrapper.text()).toContain('5h|8')
     expect(wrapper.text()).toContain('7d|30')
   })
 
@@ -772,14 +812,17 @@ describe('AccountUsageCell', () => {
     { id: 6803, utilization: Number.NaN, cost: 12 },
     { id: 6804, utilization: 40, cost: 0 },
     { id: 6805, utilization: 40, cost: Number.POSITIVE_INFINITY }
-  ])('OpenAI OAuth 7d 输入无效时不显示预计总费用 (%o)', async ({ id, utilization, cost }) => {
+  ])('OpenAI OAuth 5h/7d/月度输入无效时不显示预计总费用 (%o)', async ({ id, utilization, cost }) => {
+    const window = {
+      utilization,
+      resets_at: null,
+      remaining_seconds: 0,
+      window_stats: { requests: 1, tokens: 100, cost }
+    }
     getUsage.mockResolvedValue({
-      seven_day: {
-        utilization,
-        resets_at: null,
-        remaining_seconds: 0,
-        window_stats: { requests: 1, tokens: 100, cost }
-      }
+      five_hour: window,
+      seven_day: window,
+      thirty_day: window
     })
 
     const wrapper = mount(AccountUsageCell, {
@@ -803,7 +846,9 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
+    expect(wrapper.text()).toContain('5h|none')
     expect(wrapper.text()).toContain('7d|none')
+    expect(wrapper.text()).toContain('30d|none')
     expect(wrapper.text()).not.toMatch(/Infinity|NaN/)
   })
 

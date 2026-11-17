@@ -42,13 +42,6 @@ const messages: Record<string, string> = {
 	'common.no': 'No',
 }
 
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     usage: {
@@ -96,7 +89,8 @@ vi.mock('@/stores/app', () => ({
   }),
 }))
 
-vi.mock('@/utils/format', () => ({
+vi.mock('@/utils/format', async () => ({
+  ...await vi.importActual<typeof import('@/utils/format')>('@/utils/format'),
   formatReasoningEffort: (value: string | null | undefined) => value ?? '-',
 }))
 
@@ -405,6 +399,8 @@ describe('admin UsageView distribution metric toggles', () => {
   })
 
   it('keeps model and group metric toggles independent without refetching chart data', async () => {
+    const now = new Date(2026, 10, 16, 15, 42, 13, 456)
+    vi.setSystemTime(now)
     const wrapper = mount(UsageView, {
       global: {
         stubs: {
@@ -431,11 +427,9 @@ describe('admin UsageView distribution metric toggles', () => {
     await flushPromises()
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
-    const now = new Date()
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     expect(getSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({
-      start_date: formatLocalDate(yesterday),
-      end_date: formatLocalDate(now),
+      start_date: '2026-11-16',
+      end_date: '2026-11-16',
       granularity: 'hour'
     }))
 
@@ -672,8 +666,12 @@ describe('admin UsageView errors tab filter forwarding', () => {
     await tabs[1].trigger('click')
     await flushPromises()
 
+    const expectedEnd = new Date(`${vm.filters.end_date}T00:00:00`)
+    expectedEnd.setDate(expectedEnd.getDate() + 1)
     expect(listErrorLogs).toHaveBeenCalledWith(expect.objectContaining({
       view: 'all',
+      start_time: new Date(`${vm.filters.start_date}T00:00:00`).toISOString(),
+      end_time: expectedEnd.toISOString(),
       model: 'gpt-5.3-codex',
       account_id: 7,
       group_id: 3,

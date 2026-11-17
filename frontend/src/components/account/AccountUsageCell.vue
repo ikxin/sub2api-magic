@@ -131,6 +131,7 @@
           :utilization="usageInfo.five_hour.utilization"
           :resets-at="usageInfo.five_hour.resets_at"
           :window-stats="usageInfo.five_hour.window_stats"
+          :estimated-total-cost="openAIFiveHourEstimatedTotalCost"
           :show-now-when-idle="true"
           color="indigo"
         />
@@ -141,6 +142,16 @@
           :resets-at="usageInfo.seven_day.resets_at"
           :window-stats="usageInfo.seven_day.window_stats"
           :estimated-total-cost="openAISevenDayEstimatedTotalCost"
+          :show-now-when-idle="true"
+          color="emerald"
+        />
+        <UsageProgressBar
+          v-if="usageInfo?.thirty_day"
+          label="30d"
+          :utilization="usageInfo.thirty_day.utilization"
+          :resets-at="usageInfo.thirty_day.resets_at"
+          :window-stats="usageInfo.thirty_day.window_stats"
+          :estimated-total-cost="openAIThirtyDayEstimatedTotalCost"
           :show-now-when-idle="true"
           color="emerald"
         />
@@ -750,7 +761,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
-import type { Account, AccountUsageInfo, GeminiCredentials, WindowStats } from '@/types'
+import type { Account, AccountUsageInfo, GeminiCredentials, UsageProgress, WindowStats } from '@/types'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { enqueueUsageRequest } from '@/utils/usageLoadQueue'
 import { formatCompactNumber } from '@/utils/format'
@@ -895,13 +906,12 @@ const geminiUsageAvailable = computed(() => {
 
 const hasOpenAIUsageFallback = computed(() => {
   if (props.account.platform !== 'openai' || props.account.type !== 'oauth') return false
-  return !!usageInfo.value?.five_hour || !!usageInfo.value?.seven_day
+  return !!usageInfo.value?.five_hour || !!usageInfo.value?.seven_day || !!usageInfo.value?.thirty_day
 })
 
-const openAISevenDayEstimatedTotalCost = computed(() => {
-  const sevenDay = usageInfo.value?.seven_day
-  const utilization = sevenDay?.utilization
-  const currentCost = sevenDay?.window_stats?.cost
+const estimateOpenAIWindowTotalCost = (window?: UsageProgress | null) => {
+  const utilization = window?.utilization
+  const currentCost = window?.window_stats?.cost
   if (
     typeof utilization !== 'number' ||
     typeof currentCost !== 'number' ||
@@ -915,7 +925,17 @@ const openAISevenDayEstimatedTotalCost = computed(() => {
 
   const estimate = (currentCost * 100) / utilization
   return Number.isFinite(estimate) && estimate > 0 ? estimate : null
-})
+}
+
+const openAIFiveHourEstimatedTotalCost = computed(() =>
+  estimateOpenAIWindowTotalCost(usageInfo.value?.five_hour)
+)
+const openAISevenDayEstimatedTotalCost = computed(() =>
+  estimateOpenAIWindowTotalCost(usageInfo.value?.seven_day)
+)
+const openAIThirtyDayEstimatedTotalCost = computed(() =>
+  estimateOpenAIWindowTotalCost(usageInfo.value?.thirty_day)
+)
 
 const openAIUsageRefreshKey = computed(() => buildOpenAIUsageRefreshKey(props.account))
 

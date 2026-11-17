@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
@@ -47,13 +47,6 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const createDashboardStats = (): DashboardStats => ({
   total_users: 0,
   today_new_users: 0,
@@ -92,6 +85,8 @@ const createDashboardStats = (): DashboardStats => ({
 
 describe('admin DashboardView', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 16, 15, 42, 13, 456))
     setActivePinia(createPinia())
 
     getSnapshotV2.mockReset()
@@ -119,6 +114,8 @@ describe('admin DashboardView', () => {
     })
   })
 
+  afterEach(() => { vi.useRealTimers() })
+
   it('switches metrics and ignores a stale tokens response', async () => {
     let resolveTokens!: (value: any) => void
     getUserUsageTrend.mockImplementationOnce(() => new Promise(resolve => { resolveTokens = resolve }))
@@ -141,10 +138,28 @@ describe('admin DashboardView', () => {
     resolveTokens({ trend: [{ date: '2026-01-01', user_id: 1, username: 'tokens', email: '', requests: 1, tokens: 100, cost: 1, actual_cost: 1 }] })
     await flushPromises()
     expect(chart.props('data').datasets[0].data).toEqual([5])
+    const originalDark = document.documentElement.classList.contains('dark')
+    const requests = getUserUsageTrend.mock.calls.length
+    try {
+      for (const dark of [true, false]) {
+        document.documentElement.classList.toggle('dark', dark)
+        await flushPromises()
+        const options = chart.props('options')
+        const text = dark ? '#e5e7eb' : '#374151'
+        expect(options.plugins.legend.labels.color).toBe(text)
+        expect(options.scales.x.ticks.color).toBe(text)
+        expect(options.scales.y.ticks.color).toBe(text)
+        expect(options.scales.y.grid.color).toBe(dark ? '#374151' : '#e5e7eb')
+      }
+      expect(getUserUsageTrend).toHaveBeenCalledTimes(requests)
+    } finally {
+      wrapper.unmount()
+      document.documentElement.classList.toggle('dark', originalDark)
+    }
   })
 
-  it('uses last 24 hours as default dashboard range', async () => {
-    mount(DashboardView, {
+  it('defaults to today and advances an explicitly selected last 24 hours range on refresh', async () => {
+    const wrapper = mount(DashboardView, {
       global: {
         stubs: {
           AppLayout: { template: '<div><slot /></div>' },
@@ -166,9 +181,25 @@ describe('admin DashboardView', () => {
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
     expect(getSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({
-      start_date: formatLocalDate(yesterday),
-      end_date: formatLocalDate(now),
+      start_date: '2026-11-16',
+      end_date: '2026-11-16',
       granularity: 'hour'
     }))
+    expect(getUserUsageTrend).toHaveBeenCalledWith(expect.objectContaining({
+      start_date: '2026-11-16', end_date: '2026-11-16'
+    }))
+    expect(getUserSpendingRanking).toHaveBeenCalledWith(expect.objectContaining({
+      start_date: '2026-11-16', end_date: '2026-11-16'
+    }))
+
+    const vm = wrapper.vm as any
+    vm.startDate = yesterday.toISOString()
+    vm.endDate = now.toISOString()
+    vi.setSystemTime(new Date('2026-11-16T09:00:00.000Z'))
+    await (wrapper.vm as any).loadDashboardStats()
+    expect(getSnapshotV2).toHaveBeenLastCalledWith(expect.objectContaining({
+      start_date: '2026-11-15T09:00:00.000Z', end_date: '2026-11-16T09:00:00.000Z'
+    }))
+    wrapper.unmount()
   })
 })

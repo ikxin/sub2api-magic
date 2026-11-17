@@ -161,3 +161,38 @@ func TestStartOfWeek_Boundaries(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRangeBoundary(t *testing.T) {
+	for _, tt := range []struct {
+		name, value, zone, want string
+		end                     bool
+	}{
+		{"date start", "2026-11-16", "Asia/Shanghai", "2026-11-15T16:00:00Z", false},
+		{"date end", "2026-11-16", "Asia/Shanghai", "2026-11-16T16:00:00Z", true},
+		{"timestamp start", "2026-11-15T15:42:13.456+08:00", "UTC", "2026-11-15T07:42:13.456Z", false},
+		{"timestamp end", "2026-11-16T15:42:13.456+08:00", "Asia/Shanghai", "2026-11-16T07:42:13.456Z", true},
+		{"timestamp midnight end", "2026-11-16T00:00:00Z", "UTC", "2026-11-16T00:00:00Z", true},
+		{"spring DST end", "2026-03-08", "America/New_York", "2026-03-09T04:00:00Z", true},
+		{"fall DST end", "2026-11-01", "America/New_York", "2026-11-02T05:00:00Z", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseRangeBoundary(tt.value, tt.zone, tt.end)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.UTC().Format(time.RFC3339Nano) != tt.want {
+				t.Fatalf("got %s, want %s", got, tt.want)
+			}
+			formatted := FormatRangeBoundary(got, tt.end)
+			reparsed, err := ParseRangeBoundary(formatted, tt.zone, tt.end)
+			if err != nil || !reparsed.Equal(got) {
+				t.Fatalf("boundary did not round trip: %s: %v", formatted, err)
+			}
+		})
+	}
+	for _, value := range []string{"bad", "2026-02-30", "2026-11-16T15:42:13"} {
+		if _, err := ParseRangeBoundary(value, "UTC", true); err == nil {
+			t.Errorf("accepted invalid boundary %q", value)
+		}
+	}
+}

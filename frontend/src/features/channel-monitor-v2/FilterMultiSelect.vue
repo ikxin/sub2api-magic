@@ -10,7 +10,7 @@
       class="select-trigger flex cursor-pointer list-none items-center justify-between gap-1.5 text-left"
       :class="[
         isOpen ? 'select-trigger-open' : '',
-        compact ? 'h-8 rounded-lg !px-2 !py-1 text-xs' : 'h-[42px]',
+        compact ? 'select-trigger-compact rounded-lg !px-2 text-xs' : '',
       ]"
       :aria-expanded="isOpen"
       aria-haspopup="listbox"
@@ -232,8 +232,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .select-trigger {
+  height: var(--control-height);
   @apply flex w-full items-center justify-between gap-2;
-  @apply rounded-xl px-4 py-2.5 text-sm;
+  @apply rounded-xl px-4 py-0 text-sm leading-5;
   @apply bg-white dark:bg-dark-800;
   @apply border border-gray-200 dark:border-dark-600;
   @apply text-gray-900 dark:text-gray-100;
@@ -241,6 +242,10 @@ onBeforeUnmount(() => {
   @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
   @apply hover:border-gray-300 dark:hover:border-dark-500;
   @apply cursor-pointer;
+}
+
+.select-trigger-compact {
+  height: var(--control-height-sm);
 }
 
 .select-trigger-open {

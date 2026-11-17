@@ -66,70 +66,73 @@ beforeEach(() => {
   vi.mocked(resetOpenAIQuota).mockReset()
 })
 
-describe('OpenAIQuotaResetCell — Codex 点数', () => {
-  const points = (wrapper: ReturnType<typeof mount>) => wrapper.get('[data-testid="codex-credits"]')
+describe('OpenAIQuotaResetCell — 隐藏点数与邀请入口', () => {
+  const queryButton = (wrapper: ReturnType<typeof mount>) => wrapper.findAll('button')[0]
   const balance = { has_credits: true, unlimited: false, balance: '12345678901234567890.0123' }
 
   it.each([
-    { name: 'decimal precision', credits: balance, expected: balance.balance },
-    { name: 'zero', credits: { has_credits: false, unlimited: false, balance: '0' }, expected: '0' },
-    { name: 'unlimited takes precedence', credits: { has_credits: false, unlimited: true, balance: null }, expected: 'admin.accounts.openaiQuotaReset.pointsUnlimited' },
-    { name: 'hidden balance', credits: { has_credits: true, unlimited: false, balance: null }, expected: 'admin.accounts.openaiQuotaReset.pointsAvailable' },
-    { name: 'invalid balance', credits: { has_credits: true, unlimited: false, balance: 'NaN' }, expected: 'admin.accounts.openaiQuotaReset.pointsAvailable' },
-    { name: 'absent credits', credits: undefined, expected: '—' },
-    { name: 'null credits', credits: null, expected: '—' },
-  ])('queries and displays $name independently of reset cards', async ({ credits, expected }) => {
+    { name: 'decimal precision', credits: balance },
+    { name: 'zero', credits: { has_credits: false, unlimited: false, balance: '0' } },
+    { name: 'unlimited', credits: { has_credits: false, unlimited: true, balance: null } },
+    { name: 'hidden balance', credits: { has_credits: true, unlimited: false, balance: null } },
+    { name: 'invalid balance', credits: { has_credits: true, unlimited: false, balance: 'NaN' } },
+    { name: 'absent credits', credits: undefined },
+    { name: 'null credits', credits: null },
+  ])('keeps quota queries available with $name while hiding points and invitations', async ({ credits }) => {
     vi.mocked(refreshOpenAIQuota).mockResolvedValue({
       credits, fetched_at: 1770000000, cache_persisted: false, credits_cache_persisted: true,
     })
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
-    expect(points(wrapper).text()).toContain('—')
-    await points(wrapper).trigger('click')
+    expect(wrapper.find('[data-testid="codex-credits"]').exists()).toBe(false)
+    await queryButton(wrapper).trigger('click')
     await flushPromises()
     expect(refreshOpenAIQuota).toHaveBeenCalledWith(1)
-    expect(points(wrapper).text()).toContain(expected)
+    expect(wrapper.find('[data-testid="codex-credits"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('admin.accounts.openaiReferral.available')
+    expect(wrapper.text()).not.toContain('admin.accounts.openaiReferral.invite')
     expect(resetButton(wrapper).attributes('disabled')).toBeDefined()
     expect(resetOpenAIQuota).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  it('rehydrates points with their query timestamp without an upstream request', () => {
+  it('keeps cached points hidden without an upstream request', () => {
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
       extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000000 } },
     }) } })
-    expect(points(wrapper).text()).toContain(balance.balance)
-    expect(points(wrapper).attributes('title')).toContain('admin.accounts.openaiQuotaReset.pointsUpdatedAt:')
+    expect(wrapper.find('[data-testid="codex-credits"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain(balance.balance)
     expect(refreshOpenAIQuota).not.toHaveBeenCalled()
     expect(resetButton(wrapper).attributes('disabled')).toBeDefined()
     wrapper.unmount()
   })
 
-  it('keeps the last balance on a request failure, but clears it on a successful unknown response', async () => {
+  it('allows retrying a failed quota query while keeping cached points hidden', async () => {
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
       extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000000 } },
     }) } })
     vi.mocked(refreshOpenAIQuota).mockRejectedValueOnce(new Error('network unavailable'))
-    await points(wrapper).trigger('click')
+    await queryButton(wrapper).trigger('click')
     await flushPromises()
-    expect(points(wrapper).text()).toContain(balance.balance)
+    expect(wrapper.text()).not.toContain(balance.balance)
     expect(wrapper.text()).toContain('network unavailable')
 
     vi.mocked(refreshOpenAIQuota).mockResolvedValueOnce({ fetched_at: 1770000001, cache_persisted: true, credits_cache_persisted: true })
-    await points(wrapper).trigger('click')
+    await queryButton(wrapper).trigger('click')
     await flushPromises()
-    expect(points(wrapper).text()).toContain('—')
+    expect(refreshOpenAIQuota).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('network unavailable')
     expect(wrapper.text()).not.toContain(balance.balance)
     wrapper.unmount()
   })
 
-  it('reports a points-cache write failure while displaying the live balance', async () => {
+  it('reports a points-cache write failure without displaying the live balance', async () => {
     vi.mocked(refreshOpenAIQuota).mockResolvedValue({
       credits: balance, fetched_at: 1770000000, cache_persisted: true, credits_cache_persisted: false,
     })
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
-    await points(wrapper).trigger('click')
+    await queryButton(wrapper).trigger('click')
     await flushPromises()
-    expect(points(wrapper).text()).toContain(balance.balance)
+    expect(wrapper.text()).not.toContain(balance.balance)
     expect(wrapper.text()).toContain('admin.accounts.openaiQuotaReset.pointsCachePersistFailed')
     wrapper.unmount()
   })
@@ -138,13 +141,19 @@ describe('OpenAIQuotaResetCell — Codex 点数', () => {
     let resolve!: (value: OpenAIQuotaRefreshResult) => void
     vi.mocked(refreshOpenAIQuota).mockReturnValue(new Promise((done) => { resolve = done }))
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
-    await points(wrapper).trigger('click')
-    expect(points(wrapper).attributes('disabled')).toBeDefined()
+    await queryButton(wrapper).trigger('click')
+    expect(queryButton(wrapper).attributes('disabled')).toBeDefined()
     await wrapper.setProps({ account: makeAccount({ id: 2 }) })
-    resolve({ credits: balance, fetched_at: 1770000000, cache_persisted: true, credits_cache_persisted: true })
+    resolve({
+      credits: balance,
+      rate_limit_reset_credits: { available_count: 7, credits: [] },
+      fetched_at: 1770000000,
+      cache_persisted: true,
+      credits_cache_persisted: true,
+    })
     await flushPromises()
-    expect(points(wrapper).text()).toContain('—')
-    expect(points(wrapper).attributes('disabled')).toBeUndefined()
+    expect(queryButton(wrapper).text()).toBe('admin.accounts.openaiQuotaReset.count')
+    expect(queryButton(wrapper).attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 })
@@ -353,7 +362,8 @@ describe('OpenAIQuotaResetCell — 外审 F6:影子禁用重置', () => {
 
     expect(resetOpenAIQuota).toHaveBeenCalledWith(1)
     expect(refreshOpenAIQuota).not.toHaveBeenCalled()
-    expect(wrapper.get('[data-testid="codex-credits"]').text()).toContain('999.25')
+    expect(wrapper.find('[data-testid="codex-credits"]').exists()).toBe(false)
+    expect(wrapper.findAll('button')[0].get('span').text()).toBe('0')
     expect(wrapper.text()).not.toContain('admin.accounts.openaiQuotaReset.expiresAt:')
     expect(wrapper.text()).toContain('admin.accounts.openaiQuotaReset.resetSuccess')
     expect(wrapper.emitted('account-updated')).toEqual([[recoveredAccount]])

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
@@ -216,4 +217,38 @@ func TestAdminUsageStatsInvalidStream(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestAdminUsageExactTimeRange(t *testing.T) {
+	for _, path := range []string{"/admin/usage", "/admin/usage/stats"} {
+		t.Run(path, func(t *testing.T) {
+			repo := &adminUsageRepoCapture{}
+			router := newAdminUsageRequestTypeTestRouter(repo)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
+				path+"?start_date=2026-11-15T07:42:13.456Z&end_date=2026-11-16T07:42:13.456Z&timezone=Asia%2FShanghai", nil))
+			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+			var filters usagestats.UsageLogFilters
+			if path == "/admin/usage" {
+				filters = repo.listFilters
+			} else {
+				filters = repo.statsFilters
+			}
+			require.NotNil(t, filters.StartTime)
+			require.NotNil(t, filters.EndTime)
+			require.Equal(t, "2026-11-15T07:42:13.456Z", filters.StartTime.UTC().Format(time.RFC3339Nano))
+			require.Equal(t, "2026-11-16T07:42:13.456Z", filters.EndTime.UTC().Format(time.RFC3339Nano))
+			require.Equal(t, 24*time.Hour, filters.EndTime.Sub(*filters.StartTime))
+		})
+	}
+}
+
+func TestDashboardExactTimeRange(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodGet,
+		"/?start_date=2026-11-15T07:42:13.456Z&end_date=2026-11-16T07:42:13.456Z&timezone=Asia%2FShanghai", nil)
+	start, end := parseTimeRange(c)
+	require.Equal(t, "2026-11-15T07:42:13.456Z", start.UTC().Format(time.RFC3339Nano))
+	require.Equal(t, "2026-11-16T07:42:13.456Z", end.UTC().Format(time.RFC3339Nano))
+	require.Equal(t, 24*time.Hour, end.Sub(start))
 }

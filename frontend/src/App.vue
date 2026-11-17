@@ -21,6 +21,45 @@ const announcementStore = useAnnouncementStore()
 const adminComplianceStore = useAdminComplianceStore()
 const adminSettingsStore = useAdminSettingsStore()
 
+const scrollbarTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>()
+
+function showScrollbar(element: HTMLElement) {
+  element.classList.add('is-scrolling')
+  const timer = scrollbarTimers.get(element)
+  if (timer !== undefined) clearTimeout(timer)
+  scrollbarTimers.set(element, setTimeout(() => {
+    element.classList.remove('is-scrolling')
+    scrollbarTimers.delete(element)
+  }, 800))
+}
+
+function onScrollbarScroll(event: Event) {
+  const element = event.target === document ? document.documentElement : event.target
+  if (element instanceof HTMLElement) showScrollbar(element)
+}
+
+function onScrollbarPointerMove(event: PointerEvent) {
+  for (const element of event.composedPath()) {
+    if (!(element instanceof HTMLElement)) continue
+    const overflowsY = element.scrollHeight > element.clientHeight
+    const overflowsX = element.scrollWidth > element.clientWidth
+    if (!overflowsY && !overflowsX) continue
+
+    const isPage = element === document.documentElement
+    const style = getComputedStyle(element)
+    const bounds = isPage
+      ? { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }
+      : element.getBoundingClientRect()
+    const nearVerticalScrollbar = overflowsY && (isPage || /^(auto|scroll|overlay)$/.test(style.overflowY)) &&
+      event.clientX >= bounds.right - 12 && event.clientX <= bounds.right &&
+      event.clientY >= bounds.top && event.clientY <= bounds.bottom
+    const nearHorizontalScrollbar = overflowsX && (isPage || /^(auto|scroll|overlay)$/.test(style.overflowX)) &&
+      event.clientY >= bounds.bottom - 12 && event.clientY <= bounds.bottom &&
+      event.clientX >= bounds.left && event.clientX <= bounds.right
+    if (nearVerticalScrollbar || nearHorizontalScrollbar) showScrollbar(element)
+  }
+}
+
 function updateDocumentTitle() {
   const customMenuItems = [
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
@@ -135,11 +174,20 @@ router.afterEach(() => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('scroll', onScrollbarScroll, true)
+  document.removeEventListener('pointermove', onScrollbarPointerMove)
+  scrollbarTimers.forEach((timer, element) => {
+    clearTimeout(timer)
+    element.classList.remove('is-scrolling')
+  })
+  scrollbarTimers.clear()
   document.removeEventListener('visibilitychange', onVisibilityChange)
   window.removeEventListener('admin-compliance-required', onAdminComplianceRequired)
 })
 
 onMounted(async () => {
+  document.addEventListener('scroll', onScrollbarScroll, { capture: true, passive: true })
+  document.addEventListener('pointermove', onScrollbarPointerMove, { passive: true })
   window.addEventListener('admin-compliance-required', onAdminComplianceRequired)
 
   // Check if setup is needed

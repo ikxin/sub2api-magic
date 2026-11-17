@@ -60,6 +60,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
+import { useMutationObserver } from '@vueuse/core'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -98,9 +99,12 @@ const chartRef = ref<HTMLElement | null>(null)
 const zoom = ref<ZoomState>(resetZoom())
 const zoomed = computed(() => isZoomed(zoom.value))
 
-const isDark = computed(() =>
+const isDark = ref(
   typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
 )
+useMutationObserver(typeof document === 'undefined' ? undefined : document.documentElement, () => {
+  isDark.value = document.documentElement.classList.contains('dark')
+}, { attributes: true, attributeFilter: ['class'] })
 
 const bucketLabel = computed(() => {
   const seconds = props.coverage?.bucket_seconds || 60

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800 sm:px-6"
+    class="pagination flex items-center justify-between rounded-sm bg-white px-4 py-3 dark:bg-dark-800 sm:px-6"
   >
     <div class="flex flex-1 items-center justify-between sm:hidden">
       <!-- Mobile pagination -->
@@ -61,7 +61,7 @@
             :placeholder="t('pagination.jumpPlaceholder')"
             @keyup.enter="submitJump"
           />
-          <button type="button" class="btn btn-ghost btn-sm" @click="submitJump">
+          <button type="button" class="btn btn-ghost" @click="submitJump">
             {{ t('pagination.jumpAction') }}
           </button>
         </div>
@@ -241,7 +241,7 @@ const submitJump = () => {
 </script>
 
 <style scoped>
-.page-size-select :deep(.select-trigger) {
-  @apply px-3 py-1.5 text-sm;
+.pagination :deep(button) {
+  height: var(--control-height);
 }
 </style>

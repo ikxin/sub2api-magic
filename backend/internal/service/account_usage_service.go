@@ -230,7 +230,7 @@ type UsageInfo struct {
 	GrokLocalUsage24h      *WindowStats     `json:"grok_local_usage_24h,omitempty"`
 	GrokLocalUsage7d       *WindowStats     `json:"grok_local_usage_7d,omitempty"`
 	GrokLocalUsageMonthly  *WindowStats     `json:"grok_local_usage_monthly,omitempty"`
-	// ThirtyDay is the official monthly billing window (used/monthlyLimit %).
+	// ThirtyDay is the monthly window for OpenAI Free and Grok billing.
 	ThirtyDay   *UsageProgress      `json:"thirty_day,omitempty"`
 	GrokBilling *xai.BillingSummary `json:"grok_billing,omitempty"`
 
@@ -807,7 +807,29 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 		}
 	}
 
+	monthlyWindow := usesOpenAIMonthlyUsageWindow(account)
+	if monthlyWindow {
+		// Monthly Codex limits are stored in the legacy long-window (7d) bucket.
+		usage.ThirtyDay = usage.SevenDay
+		usage.FiveHour = nil
+		usage.SevenDay = nil
+	}
+
 	if s.usageLogRepo == nil {
+		return usage, nil
+	}
+
+	if monthlyWindow {
+		duration := 30 * 24 * time.Hour
+		if minutes := parseExtraInt(account.Extra["codex_7d_window_minutes"]); minutes > 7*24*60 {
+			duration = time.Duration(minutes) * time.Minute
+		}
+		if stats, err := s.usageLogRepo.GetAccountWindowStats(ctx, account.ID, codexWindowStatsStart(usage.ThirtyDay, duration, now)); err == nil {
+			if usage.ThirtyDay == nil {
+				usage.ThirtyDay = &UsageProgress{Utilization: 0}
+			}
+			usage.ThirtyDay.WindowStats = windowStatsFromAccountStats(stats)
+		}
 		return usage, nil
 	}
 
@@ -828,6 +850,11 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	return usage, nil
 }
 
+func usesOpenAIMonthlyUsageWindow(account *Account) bool {
+	return account != nil && account.IsOpenAIOAuth() &&
+		strings.EqualFold(strings.TrimSpace(account.GetCredential("plan_type")), "free")
+}
+
 func shouldRefreshOpenAICodexSnapshot(account *Account, usage *UsageInfo, now time.Time) bool {
 	if account == nil {
 		return false
@@ -835,7 +862,11 @@ func shouldRefreshOpenAICodexSnapshot(account *Account, usage *UsageInfo, now ti
 	if usage == nil {
 		return true
 	}
-	if usage.FiveHour == nil || usage.SevenDay == nil {
+	if usesOpenAIMonthlyUsageWindow(account) {
+		if usage.SevenDay == nil && usage.ThirtyDay == nil {
+			return true
+		}
+	} else if usage.FiveHour == nil || usage.SevenDay == nil {
 		return true
 	}
 	if account.IsRateLimited() {

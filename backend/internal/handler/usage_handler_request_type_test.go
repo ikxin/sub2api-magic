@@ -366,3 +366,27 @@ func TestUserUsageSnapshotRejectsInvalidIncludeFlags(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rec.Code, query)
 	}
 }
+
+func TestUserUsageExactTimeRange(t *testing.T) {
+	for _, path := range []string{"/usage", "/usage/stats"} {
+		t.Run(path, func(t *testing.T) {
+			repo := &userUsageRepoCapture{}
+			router := newUserUsageRequestTypeTestRouter(repo)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
+				path+"?start_date=2026-11-15T07:42:13.456Z&end_date=2026-11-16T07:42:13.456Z&timezone=Asia%2FShanghai", nil))
+			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+			var filters usagestats.UsageLogFilters
+			if path == "/usage" {
+				filters = repo.listFilters
+			} else {
+				filters = repo.statsFilters
+			}
+			require.NotNil(t, filters.StartTime)
+			require.NotNil(t, filters.EndTime)
+			require.Equal(t, "2026-11-15T07:42:13.456Z", filters.StartTime.UTC().Format(time.RFC3339Nano))
+			require.Equal(t, "2026-11-16T07:42:13.456Z", filters.EndTime.UTC().Format(time.RFC3339Nano))
+			require.Equal(t, 24*time.Hour, filters.EndTime.Sub(*filters.StartTime))
+		})
+	}
+}

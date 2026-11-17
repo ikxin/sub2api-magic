@@ -39,7 +39,7 @@
       <span class="select-icon">
         <Icon
           name="chevronDown"
-          size="md"
+          size="sm"
           :class="['transition-transform duration-200', isOpen && 'rotate-180']"
         />
       </span>
@@ -519,8 +519,9 @@ onUnmounted(() => {
 
 <style scoped>
 .select-trigger {
+  height: var(--control-height);
   @apply flex w-full items-center justify-between gap-2;
-  @apply rounded-xl px-4 py-2.5 text-sm;
+  @apply rounded-xl px-3 py-0 text-sm font-medium leading-5;
   @apply bg-white dark:bg-dark-800;
   @apply border border-gray-200 dark:border-dark-600;
   @apply text-gray-900 dark:text-gray-100;

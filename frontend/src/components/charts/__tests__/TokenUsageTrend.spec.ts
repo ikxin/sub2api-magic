@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 
 import TokenUsageTrend from '../TokenUsageTrend.vue'
 
@@ -20,12 +20,48 @@ vi.mock('vue-i18n', async () => {
 
 vi.mock('vue-chartjs', () => ({
   Line: {
+    name: 'Line',
     props: ['data', 'options'],
     template: '<div class="chart-data">{{ JSON.stringify(data) }}</div>',
   },
 }))
 
+enableAutoUnmount(afterEach)
+
 describe('TokenUsageTrend', () => {
+  it.each([false, true])('updates chart colors when switching themes after mounting (initial dark: %s)', async (initialDark) => {
+    const root = document.documentElement
+    const originalDark = root.classList.contains('dark')
+    root.classList.toggle('dark', initialDark)
+    const wrapper = mount(TokenUsageTrend, {
+      props: {
+        trendData: [{
+          date: '2026-11-16', requests: 1, input_tokens: 500, output_tokens: 100,
+          cache_creation_tokens: 0, cache_read_tokens: 1500, cost: 0.01, actual_cost: 0.005,
+        }],
+      },
+    })
+    try {
+      const chart = wrapper.findComponent({ name: 'Line' })
+      for (const dark of [initialDark, !initialDark, initialDark]) {
+        root.classList.toggle('dark', dark)
+        await flushPromises()
+        const options = chart.props('options')
+        const text = dark ? '#e5e7eb' : '#374151'
+        const grid = dark ? '#374151' : '#e5e7eb'
+        expect(options.plugins.legend.labels.color).toBe(text)
+        for (const axis of ['x', 'y']) {
+          expect(options.scales[axis].ticks.color).toBe(text)
+          expect(options.scales[axis].grid.color).toBe(grid)
+        }
+        expect(chart.props('data').datasets[0].data).toEqual([500])
+      }
+    } finally {
+      wrapper.unmount()
+      root.classList.toggle('dark', originalDark)
+    }
+  })
+
   it('calculates cache hit rate against all prompt tokens', () => {
     const wrapper = mount(TokenUsageTrend, {
       props: {

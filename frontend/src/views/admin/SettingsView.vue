@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-6xl space-y-6">
+    <div class="settings-page mx-auto max-w-6xl">
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-12">
         <div
@@ -9,15 +9,20 @@
       </div>
 
       <!-- Settings Form -->
-      <form v-else @submit.prevent="saveSettings" class="space-y-6" novalidate>
+      <form v-else @submit.prevent="saveSettings" class="flex h-full min-h-0 flex-col gap-6" novalidate>
         <!-- Tab Navigation -->
         <div class="settings-tabs-shell">
           <nav
+            ref="settingsTabsScroll"
             class="settings-tabs-scroll"
+            :class="{
+              'settings-tabs-more-left': !settingsTabsEdges.left,
+              'settings-tabs-more-right': !settingsTabsEdges.right,
+            }"
             role="tablist"
             :aria-label="t('admin.settings.title')"
           >
-            <div class="settings-tabs">
+            <div ref="settingsTabsTrack" class="settings-tabs">
               <button
                 v-for="tab in settingsTabs"
                 :key="tab.key"
@@ -33,7 +38,7 @@
                 @click="selectSettingsTab(tab.key)"
                 @keydown="handleSettingsTabKeydown($event, tab.key)"
               >
-                <span class="settings-tab-icon">
+                <span class="settings-tab-icon" aria-hidden="true">
                   <Icon :name="tab.icon" size="sm" />
                 </span>
                 <span class="settings-tab-label">{{
@@ -44,6 +49,7 @@
           </nav>
         </div>
 
+        <div class="settings-content flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto rounded-sm">
         <!-- Tab: Security — Admin API Key -->
         <div v-show="activeTab === 'security'" class="space-y-6">
           <AdminAccessKeysSettings />
@@ -3978,7 +3984,7 @@
                         type="number"
                         min="1"
                         max="36500"
-                        class="input h-[42px]"
+                        class="input"
                       />
                     </div>
                     <div class="flex items-end">
@@ -4028,7 +4034,7 @@
                             type="number"
                             step="0.01"
                             min="0"
-                            class="input h-8 w-28 text-sm"
+                            class="input h-[var(--control-height-sm)] w-28 text-sm"
                             :placeholder="t('admin.settings.platformQuota.placeholder')"
                           />
                         </td>
@@ -4038,7 +4044,7 @@
                             type="number"
                             step="0.01"
                             min="0"
-                            class="input h-8 w-28 text-sm"
+                            class="input h-[var(--control-height-sm)] w-28 text-sm"
                             :placeholder="t('admin.settings.platformQuota.placeholder')"
                           />
                         </td>
@@ -4048,7 +4054,7 @@
                             type="number"
                             step="0.01"
                             min="0"
-                            class="input h-8 w-28 text-sm"
+                            class="input h-[var(--control-height-sm)] w-28 text-sm"
                             :placeholder="t('admin.settings.platformQuota.placeholder')"
                           />
                         </td>
@@ -4312,7 +4318,7 @@
                             type="number"
                             min="1"
                             max="36500"
-                            class="input h-[42px]"
+                            class="input"
                           />
                         </div>
                         <div class="flex items-end">
@@ -4363,7 +4369,7 @@
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  class="input h-8 w-28 text-sm"
+                                  class="input h-[var(--control-height-sm)] w-28 text-sm"
                                   :placeholder="t('admin.settings.platformQuota.placeholder')"
                                 />
                               </td>
@@ -4373,7 +4379,7 @@
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  class="input h-8 w-28 text-sm"
+                                  class="input h-[var(--control-height-sm)] w-28 text-sm"
                                   :placeholder="t('admin.settings.platformQuota.placeholder')"
                                 />
                               </td>
@@ -4383,7 +4389,7 @@
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  class="input h-8 w-28 text-sm"
+                                  class="input h-[var(--control-height-sm)] w-28 text-sm"
                                   :placeholder="t('admin.settings.platformQuota.placeholder')"
                                 />
                               </td>
@@ -8898,6 +8904,7 @@
             }}
           </button>
         </div>
+        </div>
       </form>
 
       <!-- Provider dialogs placed outside the settings form to prevent form submission bubbling -->
@@ -8939,6 +8946,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
+import { useResizeObserver, useScroll } from "@vueuse/core";
 import { listPlatformIds } from "@/constants/platformCatalog";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
@@ -9078,6 +9086,15 @@ const settingsTabs = [
   { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
+const settingsTabsScroll = ref<HTMLElement | null>(null);
+const settingsTabsTrack = ref<HTMLElement | null>(null);
+const { arrivedState: settingsTabsEdges, measure: measureSettingsTabs } =
+  useScroll(settingsTabsScroll);
+
+useResizeObserver([settingsTabsScroll, settingsTabsTrack], () => {
+  revealSettingsTab(activeTab.value);
+  measureSettingsTabs();
+});
 
 const settingsTabKeyboardActions = {
   ArrowLeft: -1,
@@ -9090,11 +9107,29 @@ const settingsTabKeyboardActions = {
 
 function selectSettingsTab(tab: SettingsTab): void {
   activeTab.value = tab;
+  revealSettingsTab(tab);
+}
+
+function revealSettingsTab(tab: SettingsTab): void {
+  const scroller = settingsTabsScroll.value;
+  const button = document.getElementById(`settings-tab-${tab}`);
+  if (!scroller || !button) return;
+
+  const viewport = scroller.getBoundingClientRect();
+  const bounds = button.getBoundingClientRect();
+  const edgePadding = 24;
+  // Only move the tab strip; keep the settings form at its current scroll position.
+  if (bounds.left < viewport.left + edgePadding) {
+    scroller.scrollLeft += bounds.left - viewport.left - edgePadding;
+  } else if (bounds.right > viewport.right - edgePadding) {
+    scroller.scrollLeft += bounds.right - viewport.right + edgePadding;
+  }
 }
 
 function focusSettingsTab(tab: SettingsTab): void {
   window.requestAnimationFrame(() => {
-    document.getElementById(`settings-tab-${tab}`)?.focus();
+    document.getElementById(`settings-tab-${tab}`)?.focus({ preventScroll: true });
+    revealSettingsTab(tab);
   });
 }
 
@@ -13272,26 +13307,61 @@ watch(
 
 <style scoped>
 .default-sub-group-select :deep(.select-trigger) {
-  @apply h-[42px];
+  height: var(--control-height);
 }
 
 .default-sub-delete-btn {
-  @apply h-[42px];
+  height: var(--control-height);
 }
 
 /* ============ 系统设置 Tab 导航 ============ */
+.settings-page {
+  --settings-page-gutter: 1rem;
+  height: calc(100vh - 4rem - var(--settings-page-gutter) * 2);
+  height: calc(100dvh - 4rem - var(--settings-page-gutter) * 2);
+}
+
+@media (min-width: 768px) {
+  .settings-page {
+    --settings-page-gutter: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .settings-page {
+    --settings-page-gutter: 2rem;
+  }
+}
+
 .settings-tabs-shell {
-  @apply sticky z-20 -mx-1 rounded-2xl border border-white/80 bg-white/90 p-1.5 backdrop-blur-xl;
-  top: 4.75rem;
-  box-shadow:
-    0 12px 28px rgb(15 23 42 / 0.07),
-    0 1px 0 rgb(255 255 255 / 0.9) inset;
+  @apply shrink-0 overflow-hidden rounded-sm border-b border-gray-200 bg-white dark:border-dark-800;
+}
+
+.settings-content > * {
+  flex-shrink: 0;
 }
 
 .settings-tabs-scroll {
   @apply overflow-x-auto;
+  --tabs-fade-left: 0px;
+  --tabs-fade-right: 0px;
   -ms-overflow-style: none;
   scrollbar-width: none;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--tabs-fade-left),
+    #000 calc(100% - var(--tabs-fade-right)),
+    transparent
+  );
+}
+
+.settings-tabs-more-left {
+  --tabs-fade-left: 1.5rem;
+}
+
+.settings-tabs-more-right {
+  --tabs-fade-right: 1.5rem;
 }
 
 .settings-tabs-scroll::-webkit-scrollbar {
@@ -13299,117 +13369,67 @@ watch(
 }
 
 .settings-tabs {
-  @apply flex min-w-max items-center gap-1;
+  @apply flex w-max min-w-full items-center gap-1;
 }
 
 .settings-tab {
-  @apply relative isolate flex h-10 min-w-[6.75rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-transparent px-3 text-sm font-medium text-gray-600 outline-none transition-colors duration-200 ease-out dark:text-gray-300;
+  height: var(--control-height);
+  flex: 1 0 auto;
+  @apply relative flex items-center justify-center gap-2 whitespace-nowrap rounded-t-sm px-3 text-sm font-medium leading-5 text-gray-500 outline-none transition-colors duration-150 dark:text-gray-400;
 }
 
-@media (min-width: 768px) {
-  .settings-tabs {
-    @apply min-w-full;
-  }
-
-  .settings-tab {
-    @apply min-w-0 flex-1 basis-0 overflow-hidden px-2 text-[13px];
-  }
-
-  .settings-tab-icon {
-    @apply h-6 w-6;
-  }
-}
-
-.settings-tab::before {
-  @apply absolute inset-0 -z-10 rounded-xl opacity-0 transition-opacity duration-200;
+.settings-tab::after {
+  @apply absolute inset-x-3 bottom-0 h-0.5 bg-current opacity-0;
   content: "";
-  background: linear-gradient(135deg, rgb(248 250 252 / 0.95), rgb(241 245 249 / 0.8));
+  transform: scaleX(0.75);
+  transition: opacity 150ms ease, transform 150ms ease;
 }
 
-.settings-tab:hover::before,
-.settings-tab:focus-visible::before {
-  opacity: 1;
+.settings-tab:not(.settings-tab-active):hover {
+  @apply bg-gray-200/50 text-gray-900 dark:bg-dark-800/60 dark:text-gray-100;
 }
 
 .settings-tab:focus-visible {
-  @apply ring-2 ring-primary-500/40 ring-offset-2 ring-offset-white dark:ring-offset-dark-900;
+  @apply ring-2 ring-inset ring-primary-500/40;
 }
 
 .settings-tab-active {
-  @apply border-primary-200/80 bg-white text-primary-700 shadow-sm dark:border-primary-400/30 dark:bg-dark-700/95 dark:text-primary-200;
-  box-shadow:
-    0 8px 18px rgb(15 23 42 / 0.08),
-    0 1px 0 rgb(255 255 255 / 0.92) inset;
-}
-
-.settings-tab-active::before {
-  opacity: 0;
+  @apply text-gray-900 dark:text-white;
 }
 
 .settings-tab-active::after {
-  position: absolute;
-  right: 0.75rem;
-  bottom: 0.25rem;
-  left: 0.75rem;
-  height: 2px;
-  border-radius: 9999px;
-  content: "";
-  background: linear-gradient(90deg, #14b8a6, #0ea5e9);
+  @apply opacity-100;
+  transform: scaleX(1);
 }
 
 .settings-tab-icon {
-  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200 dark:text-gray-400;
-}
-
-.settings-tab:hover .settings-tab-icon,
-.settings-tab:focus-visible .settings-tab-icon {
-  @apply text-gray-700 dark:text-gray-200;
+  @apply flex h-4 w-4 shrink-0 items-center justify-center opacity-70;
 }
 
 .settings-tab-active .settings-tab-icon {
-  @apply bg-primary-50 text-primary-600 dark:bg-primary-400/10 dark:text-primary-300;
+  @apply opacity-100;
 }
 
 .settings-tab-label {
-  @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap leading-none;
+  @apply whitespace-nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-tab,
+  .settings-tab::after {
+    transition: none;
+  }
 }
 
 /* ============ 系统设置 保存浮标 ============ */
 .settings-save-dock {
-  @apply sticky bottom-3 z-20 ml-auto flex w-fit items-center rounded-full border border-white/80 bg-white/90 p-1.5 backdrop-blur-xl;
-  box-shadow:
-    0 10px 26px rgb(15 23 42 / 0.12),
-    0 1px 0 rgb(255 255 255 / 0.9) inset;
+  @apply sticky bottom-3 z-20 ml-auto flex w-fit items-center;
 }
 </style>
 
 <style>
-/* Dark-mode overrides for the settings tabs shell. Kept in an UNSCOPED block
-   because Vue's scoped-CSS compiler was dropping the `:global(.dark) ...`
-   rules in the production build, leaving inactive tabs unreadable on dark. */
+/* Keep this unscoped to avoid the scoped :global(.dark) build issue. */
 .dark .settings-tabs-shell {
-  border-color: rgb(51 65 85 / 0.65);
-  background: rgb(15 23 42 / 0.86);
-  box-shadow:
-    0 16px 36px rgb(0 0 0 / 0.28),
-    0 1px 0 rgb(255 255 255 / 0.06) inset;
-}
-
-.dark .settings-tab::before {
-  background: linear-gradient(135deg, rgb(30 41 59 / 0.9), rgb(51 65 85 / 0.62));
-}
-
-.dark .settings-tab-active {
-  box-shadow:
-    0 12px 26px rgb(0 0 0 / 0.22),
-    0 1px 0 rgb(255 255 255 / 0.08) inset;
-}
-
-.dark .settings-save-dock {
-  border-color: rgb(51 65 85 / 0.65);
-  background: rgb(15 23 42 / 0.86);
-  box-shadow:
-    0 14px 32px rgb(0 0 0 / 0.34),
-    0 1px 0 rgb(255 255 255 / 0.06) inset;
+  background: theme('colors.dark.900');
 }
 </style>

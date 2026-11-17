@@ -18,6 +18,8 @@ import { nextTick } from 'vue'
 
 import en from '@/i18n/locales/en/admin/resources'
 import zh from '@/i18n/locales/zh/admin/resources'
+import enDashboard from '@/i18n/locales/en/dashboard'
+import zhDashboard from '@/i18n/locales/zh/dashboard'
 import UsageTable from '../UsageTable.vue'
 
 let locale: 'en' | 'zh' = 'en'
@@ -25,10 +27,12 @@ const localizedMessages: Record<'en' | 'zh', Record<string, string>> = {
   en: {
     'admin.usage.longContext': en.usage.longContext,
     'admin.usage.longContextPricingTooltip': en.usage.longContextPricingTooltip,
+    'usage.cacheHitRate': enDashboard.usage.cacheHitRate,
   },
   zh: {
     'admin.usage.longContext': zh.usage.longContext,
     'admin.usage.longContextPricingTooltip': zh.usage.longContextPricingTooltip,
+    'usage.cacheHitRate': zhDashboard.usage.cacheHitRate,
   },
 }
 
@@ -145,6 +149,72 @@ const baseImageRow = {
 }
 
 describe('admin UsageTable tooltip', () => {
+  it.each([
+    { input: 239, read: 334800, creation: 0, output: 1130, expected: '99.92%' },
+    { input: 159, read: 382300, creation: 0, output: 91, expected: '99.95%' },
+    { input: 1, read: 2, creation: 0, output: 100, expected: '66.66%' },
+    { input: 42, read: 58, creation: 0, output: 100, expected: '58.00%' },
+    { input: 200, read: 500, creation: 300, output: 10000, expected: '50.00%' },
+    { input: 0, read: 500, creation: 0, output: 100, expected: '99.99%' },
+    { input: 200, read: 0, creation: 300, output: 100, expected: '0.00%' },
+  ])('shows $expected cache hit rate using all input buckets and excluding output', ({ input, read, creation, output, expected }) => {
+    const row = {
+      ...baseImageRow,
+      image_count: 0,
+      billing_mode: 'token',
+      input_tokens: input,
+      cache_read_tokens: read,
+      cache_creation_tokens: creation,
+      output_tokens: output,
+    }
+    const wrapper = mount(UsageTable, {
+      props: { data: [row], columns: [] },
+      global: { stubs: { DataTable: DataTableStub, Icon: true, Teleport: true } },
+    })
+    try {
+      expect(wrapper.get('[data-testid="cache-hit-rate"]').text()).toBe(expected)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it.each(['en', 'zh'] as const)('localizes the cache hit rate accessible label in %s', (language) => {
+    locale = language
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{ ...baseImageRow, image_count: 0, billing_mode: 'token', cache_read_tokens: 100 }],
+        columns: [],
+      },
+      global: { stubs: { DataTable: DataTableStub, Icon: true, Teleport: true } },
+    })
+    try {
+      const rate = wrapper.get('[data-testid="cache-hit-rate"]')
+      expect(rate.attributes('aria-label')).toBe(localizedMessages[language]['usage.cacheHitRate'])
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('omits cache hit rate for requests without cache usage and per-image billing', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [
+          { ...baseImageRow, request_id: 'no-cache', image_count: 0, billing_mode: 'token', input_tokens: 100 },
+          { ...baseImageRow, request_id: 'zero-tokens', image_count: 0, billing_mode: 'token' },
+          { ...baseImageRow, request_id: 'per-image', cache_read_tokens: 100 },
+        ],
+        columns: [],
+      },
+      global: { stubs: { DataTable: DataTableStub, Icon: true, Teleport: true } },
+    })
+    try {
+      expect(wrapper.find('[data-testid="cache-hit-rate"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toMatch(/NaN|Infinity/)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('shows the two OpenAI cache-write buckets without Anthropic lifetime labels', async () => {
     const row = { ...baseImageRow, image_count: 0, billing_mode: 'token', cache_creation_tokens: 2399, cache_creation_30m_tokens: 9, cache_creation_12h_tokens: 2390 }
     const wrapper = mount(UsageTable, {
