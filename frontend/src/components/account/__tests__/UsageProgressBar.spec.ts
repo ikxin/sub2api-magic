@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { formatDateTime } from '@/utils/format'
 import UsageProgressBar from '../UsageProgressBar.vue'
 
 vi.mock('vue-i18n', async () => {
@@ -22,19 +23,31 @@ describe('UsageProgressBar', () => {
     vi.useRealTimers()
   })
 
-  it('showNowWhenIdle=true 且利用率为 0 但有未来 resetsAt 时显示倒计时', () => {
+  it('空闲窗口有重置时间时显示倒计时，悬浮提示随重置时间更新', async () => {
+    const resetsAt = '2026-03-17T02:30:15Z'
     const wrapper = mount(UsageProgressBar, {
       props: {
         label: '5h',
         utilization: 0,
-        resetsAt: '2026-03-17T02:30:00Z',
+        resetsAt,
         showNowWhenIdle: true,
         color: 'indigo'
       }
     })
 
-    expect(wrapper.text()).toContain('2h 30m')
-    expect(wrapper.text()).not.toContain('usage.resetNow')
+    const countdown = wrapper.get('span[title]')
+    expect(countdown.text()).toBe('2h 30m')
+    expect(countdown.attributes('title')).toBe(formatDateTime(resetsAt))
+
+    const nextResetsAt = '2026-03-17T03:45:32Z'
+    await wrapper.setProps({ resetsAt: nextResetsAt })
+    expect(countdown.text()).toBe('3h 45m')
+    expect(countdown.attributes('title')).toBe(formatDateTime(nextResetsAt))
+
+    await wrapper.setProps({ resetsAt: null })
+    expect(countdown.text()).toBe('usage.resetNow')
+    expect(countdown.attributes('title')).toBe('')
+    wrapper.unmount()
   })
 
   it('showNowWhenIdle=true 但利用率大于 0 时显示倒计时', () => {

@@ -20,7 +20,7 @@
 2026-11-22 同步至官方 `main` 的 `v0.2.24`（[`328db26f4`](https://github.com/Wei-Shaw/sub2api/commit/328db26f450edbdf9f8d4344a3ea903ac6396842)）。
 
 ```bash
-docker build -t ikxin/sub2api-magic:latest .
+docker build --push -t ikxin/sub2api-magic:latest .
 ```
 
 部署参考 [部署文档](deploy/README.md)，使用自行构建的 Magic 镜像。后续通过单文件 [SKILL.md](skills/sub2api-upstream-sync/SKILL.md) 将 sub2api 上游更新合并到魔改版，保留上述修改。

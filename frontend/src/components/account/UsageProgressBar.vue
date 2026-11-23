@@ -50,7 +50,11 @@
       </span>
 
       <!-- Reset time -->
-      <span v-if="shouldShowResetTime" class="shrink-0 text-[10px] text-gray-400">
+      <span
+        v-if="shouldShowResetTime"
+        class="shrink-0 text-[10px] text-gray-400"
+        :title="resetTimeTitle"
+      >
         {{ formatResetTime }}
       </span>
     </div>
@@ -62,7 +66,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import type { WindowStats } from '@/types'
-import { formatCompactNumber } from '@/utils/format'
+import { formatCompactNumber, formatDateTime } from '@/utils/format'
 
 const props = withDefaults(
   defineProps<{
@@ -190,6 +194,8 @@ const shouldShowResetTime = computed(() => {
   if (props.resetsAt) return true
   return Boolean(props.showNowWhenIdle && props.utilization <= 0)
 })
+
+const resetTimeTitle = computed(() => formatDateTime(props.resetsAt))
 
 // Format reset time
 const formatResetTime = computed(() => {
