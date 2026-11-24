@@ -167,6 +167,16 @@
               </div>
 
               <div class="py-1">
+                <router-link
+                  v-if="authStore.isAdmin"
+                  to="/dashboard"
+                  @click="closeDropdown"
+                  class="dropdown-item"
+                >
+                  <Icon name="chart" size="sm" />
+                  {{ t('nav.dashboard') }}
+                </router-link>
+
                 <router-link to="/profile" @click="closeDropdown" class="dropdown-item">
                   <Icon name="user" size="sm" />
                   {{ t('nav.profile') }}

@@ -17,7 +17,7 @@
 
 ## 构建与同步
 
-2026-11-22 同步至官方 `main` 的 `v0.2.24`（[`328db26f4`](https://github.com/Wei-Shaw/sub2api/commit/328db26f450edbdf9f8d4344a3ea903ac6396842)）。
+2026-11-24 同步至官方 `main` 的 `v0.2.25`（[`0f6671457`](https://github.com/Wei-Shaw/sub2api/commit/0f6671457132425d1b84f3d80536b53e02942424)）。
 
 ```bash
 docker build --push -t ikxin/sub2api-magic:latest .
