@@ -290,15 +290,9 @@
           @sort="handleSort"
           @update:selected-keys="handleSelectedKeysUpdate"
         >
-          <template #cell-email="{ value }">
+          <template #cell-email="{ row, value }">
             <div class="flex items-center gap-2">
-              <div
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
-              >
-                <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
-                  {{ value.charAt(0).toUpperCase() }}
-                </span>
-              </div>
+              <UserAvatar :email="row.email" :src="row.avatar_url" class="h-8 w-8" />
               <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
             </div>
           </template>
@@ -815,6 +809,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import Select from '@/components/common/Select.vue'
+import UserAvatar from '@/components/common/UserAvatar.vue'
 import { buildApiKeyGroupFilterOptions } from './apiKeyGroupFilterOptions'
 import UserAttributesConfigModal from '@/components/user/UserAttributesConfigModal.vue'
 import UserConcurrencyCell from '@/components/user/UserConcurrencyCell.vue'

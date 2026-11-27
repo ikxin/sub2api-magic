@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@airwallex/components-sdk": "^1.30.2",
+    "@dicebear/core": "11.0.0",
+    "@dicebear/styles": "11.0.0",
     "@lobehub/icons": "^4.0.2",
     "@stripe/stripe-js": "^9.0.1",
     "@tanstack/vue-virtual": "^3.13.23",

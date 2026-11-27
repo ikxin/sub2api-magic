@@ -1,5 +1,12 @@
 package usagestats
 
+import "time"
+
+type AccountWindowStart struct {
+	AccountID int64
+	Start     time.Time
+}
+
 // AccountStats 账号使用统计
 //
 // cost: 账号口径费用（使用 total_cost * account_rate_multiplier）

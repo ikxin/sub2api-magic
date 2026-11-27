@@ -387,6 +387,43 @@ func (r *usageLogRepository) GetAccountWindowStatsBatch(ctx context.Context, acc
 	return result, nil
 }
 
+// GetAccountWindowStatsByStarts returns one aggregate per requested account/window, in input order.
+func (r *usageLogRepository) GetAccountWindowStatsByStarts(ctx context.Context, windows []usagestats.AccountWindowStart) ([]usagestats.AccountStats, error) {
+	ids := make([]int64, len(windows))
+	starts := make([]time.Time, len(windows))
+	for i, window := range windows {
+		ids[i], starts[i] = window.AccountID, window.Start
+	}
+
+	const query = `
+		SELECT stats.requests, stats.tokens, stats.cost
+		FROM unnest($1::bigint[], $2::timestamptz[]) WITH ORDINALITY AS windows(account_id, starts_at, ord)
+		CROSS JOIN LATERAL (
+			SELECT COUNT(*) AS requests,
+				COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) AS tokens,
+				COALESCE(SUM(COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1)), 0) AS cost
+			FROM usage_logs
+			WHERE account_id = windows.account_id AND created_at >= windows.starts_at
+		) AS stats
+		ORDER BY windows.ord
+	`
+	rows, err := r.sql.QueryContext(ctx, query, pq.Array(ids), pq.Array(starts))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make([]usagestats.AccountStats, 0, len(windows))
+	for rows.Next() {
+		var stats usagestats.AccountStats
+		if err := rows.Scan(&stats.Requests, &stats.Tokens, &stats.Cost); err != nil {
+			return nil, err
+		}
+		result = append(result, stats)
+	}
+	return result, rows.Err()
+}
+
 // accountUpstreamErrorPredicate 与运维看板的上游错误口径一致（不区分 429/529）。
 // ops_error_logs 每个请求一行，account_id 为最终（或最后失败的）账号，故障转移中间尝试不单独计入。
 const accountUpstreamErrorPredicate = `error_owner = 'provider' AND NOT is_business_limited`

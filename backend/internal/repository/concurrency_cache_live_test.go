@@ -71,3 +71,35 @@ func TestLiveLeaseExpiresWithoutRefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, refreshed)
 }
+
+func TestReadAccountConcurrencyBatchCountsUnexpiredSlotsWithoutRemovingAny(t *testing.T) {
+	ctx := context.Background()
+	redisServer := miniredis.RunT(t)
+	now := time.Unix(1_800_000_000, 0)
+	redisServer.SetTime(now)
+	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	cache := NewConcurrencyCache(client, 15, 900).(*concurrencyCache)
+
+	accountID := int64(10)
+	regular := accountSlotKey(accountID)
+	live := liveAccountSlotKey(accountID)
+	for _, slots := range []struct {
+		key    string
+		cutoff int64
+	}{
+		{regular, now.Unix() - int64(cache.slotTTLSeconds)},
+		{live, now.Unix() - liveLeaseTTLSeconds},
+	} {
+		require.NoError(t, client.ZAdd(ctx, slots.key,
+			redis.Z{Score: float64(slots.cutoff), Member: "expired"},
+			redis.Z{Score: float64(slots.cutoff + 1), Member: "active"},
+		).Err())
+	}
+
+	counts, err := cache.ReadAccountConcurrencyBatch(ctx, []int64{accountID, 99})
+	require.NoError(t, err)
+	require.Equal(t, map[int64]int{accountID: 2, 99: 0}, counts)
+	require.EqualValues(t, 2, client.ZCard(ctx, regular).Val())
+	require.EqualValues(t, 2, client.ZCard(ctx, live).Val())
+}

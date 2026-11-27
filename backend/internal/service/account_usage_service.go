@@ -678,6 +678,16 @@ func (s *AccountUsageService) getPassiveUsageForAccount(ctx context.Context, acc
 		return nil, fmt.Errorf("passive usage only supported for Anthropic OAuth/SetupToken accounts")
 	}
 
+	info := s.buildAnthropicPassiveUsage(account)
+	s.addWindowStats(ctx, account, info)
+	if account.IsSyntheticUITest() {
+		applySyntheticWindowStats(info, account.Extra)
+	}
+
+	return info, nil
+}
+
+func (s *AccountUsageService) buildAnthropicPassiveUsage(account *Account) *UsageInfo {
 	// 复用 estimateSetupTokenUsage 构建 5h 窗口（OAuth 和 SetupToken 逻辑一致）
 	info := s.estimateSetupTokenUsage(account)
 	info.Source = "passive"
@@ -697,13 +707,7 @@ func (s *AccountUsageService) getPassiveUsageForAccount(ctx context.Context, acc
 	// 构建 7d Fable 窗口（从被动采样的 7d_oi 响应头数据）
 	info.SevenDayFable = buildPassiveUsageWindow(account.Extra, "passive_usage_7d_oi_utilization", "passive_usage_7d_oi_reset")
 
-	// 添加窗口统计
-	s.addWindowStats(ctx, account, info)
-	if account.IsSyntheticUITest() {
-		applySyntheticWindowStats(info, account.Extra)
-	}
-
-	return info, nil
+	return info
 }
 
 func applySyntheticWindowStats(info *UsageInfo, extra map[string]any) {
@@ -870,10 +874,7 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	}
 
 	if monthlyWindow {
-		duration := 30 * 24 * time.Hour
-		if minutes := parseExtraInt(account.Extra["codex_7d_window_minutes"]); minutes > 7*24*60 {
-			duration = time.Duration(minutes) * time.Minute
-		}
+		duration := openAIMonthlyWindowDuration(account)
 		if stats, err := s.usageLogRepo.GetAccountWindowStats(ctx, account.ID, codexWindowStatsStart(usage.ThirtyDay, duration, now)); err == nil {
 			if usage.ThirtyDay == nil {
 				usage.ThirtyDay = &UsageProgress{UtilizationUnknown: true}
@@ -903,6 +904,13 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 func usesOpenAIMonthlyUsageWindow(account *Account) bool {
 	return account != nil && account.IsOpenAIOAuth() &&
 		strings.EqualFold(strings.TrimSpace(account.GetCredential("plan_type")), "free")
+}
+
+func openAIMonthlyWindowDuration(account *Account) time.Duration {
+	if minutes := parseExtraInt(account.Extra["codex_7d_window_minutes"]); minutes > 7*24*60 {
+		return time.Duration(minutes) * time.Minute
+	}
+	return 30 * 24 * time.Hour
 }
 
 func shouldRefreshOpenAICodexSnapshot(account *Account, usage *UsageInfo, now time.Time) bool {

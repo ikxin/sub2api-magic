@@ -1345,6 +1345,29 @@ func (s *UsageLogRepoSuite) TestGetAccountWindowStats() {
 	s.Require().Equal(int64(70), stats.Tokens) // (10+20) + (15+25)
 }
 
+func (s *UsageLogRepoSuite) TestGetAccountWindowStatsByStarts() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "batched-windowstats@test.com"})
+	key := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-batched-windowstats", Name: "key"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "batched-windowstats"})
+	other := mustCreateAccount(s.T(), s.client, &service.Account{Name: "other-windowstats"})
+	now := time.Now().UTC().Truncate(time.Second)
+	s.createUsageLog(user, key, account, 10, 20, 1, now.Add(-time.Hour))
+	s.createUsageLog(user, key, account, 20, 30, 2, now.Add(-3*time.Hour))
+	s.createUsageLog(user, key, other, 70, 30, 3, now.Add(-time.Hour))
+
+	stats, err := s.repo.GetAccountWindowStatsByStarts(s.ctx, []usagestats.AccountWindowStart{
+		{AccountID: account.ID, Start: now.Add(-time.Hour)},
+		{AccountID: other.ID, Start: now},
+		{AccountID: account.ID, Start: now.Add(-4 * time.Hour)},
+	})
+	s.Require().NoError(err)
+	s.Require().Equal([]usagestats.AccountStats{
+		{Requests: 1, Tokens: 30, Cost: 1},
+		{},
+		{Requests: 2, Tokens: 80, Cost: 3},
+	}, stats)
+}
+
 func (s *UsageLogRepoSuite) TestActiveFiveHourResetExcludesPreviousWindowCost() {
 	user := mustCreateUser(s.T(), s.client, &service.User{Email: "window-reset@test.com"})
 	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-window-reset", Name: "k"})

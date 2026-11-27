@@ -168,11 +168,7 @@
             :to="dashboardPath"
             class="inline-flex items-center gap-1.5 rounded-full bg-gray-900 py-1 pl-1 pr-2.5 transition-colors hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
           >
-            <span
-              class="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-[10px] font-semibold text-white"
-            >
-              {{ userInitial }}
-            </span>
+            <UserAvatar :email="authStore.user?.email" :src="authStore.user?.avatar_url" class="h-5 w-5" />
             <span class="text-xs font-medium text-white">{{ t('home.dashboard') }}</span>
             <svg
               class="h-3 w-3 text-gray-400"
@@ -498,6 +494,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import UserAvatar from '@/components/common/UserAvatar.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
@@ -539,11 +536,6 @@ const showModelPlazaEntry = computed(
 )
 const isAdmin = computed(() => authStore.isAdmin)
 const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dashboard')
-const userInitial = computed(() => {
-  const user = authStore.user
-  if (!user || !user.email) return ''
-  return user.email.charAt(0).toUpperCase()
-})
 
 // Current year for footer
 const currentYear = computed(() => new Date().getFullYear())

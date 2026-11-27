@@ -49,7 +49,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
         if (key === 'profile.avatar.uploadAction') return 'Upload image'
         if (key === 'profile.avatar.uploadHint') return 'Uploaded images are compressed to 20KB when possible'
         if (key === 'profile.avatar.saveSuccess') return 'Avatar updated'
-        if (key === 'profile.avatar.deleteSuccess') return 'Avatar removed'
+        if (key === 'profile.avatar.deleteSuccess') return 'Default avatar restored'
         if (key === 'profile.avatar.invalidType') return 'Please choose an image file'
         if (key === 'profile.avatar.gifTooLarge') return 'GIF avatars must already be 20KB or smaller'
         if (key === 'profile.avatar.compressTooLarge') return 'Unable to compress this image below 20KB'
@@ -175,6 +175,45 @@ describe('ProfileAvatarCard', () => {
     expect(wrapper.find('[data-testid="profile-avatar-input"]').exists()).toBe(false)
   })
 
+  it('uses the same Clay avatar when a saved picture is missing or fails', async () => {
+    const user = createUser()
+    const wrapper = mount(ProfileAvatarCard, { props: { user } })
+    const preview = () => wrapper.get<HTMLImageElement>('[data-testid="profile-avatar-preview"]')
+    const defaultSrc = preview().attributes('src')
+
+    expect(defaultSrc).toMatch(/^data:image\/svg\+xml;/)
+    expect(decodeURIComponent(defaultSrc)).toContain('<dc:title>Clay</dc:title>')
+
+    const avatarUrl = 'https://cdn.example.com/avatar.png'
+    await wrapper.setProps({ user: { ...user, username: 'new-name', avatar_url: avatarUrl } })
+    expect(preview().attributes('src')).toBe(avatarUrl)
+
+    await preview().trigger('error')
+    expect(preview().attributes('src')).toBe(defaultSrc)
+
+    const replacementUrl = 'https://cdn.example.com/replacement.png'
+    await wrapper.setProps({ user: { ...user, avatar_url: replacementUrl } })
+    expect(preview().attributes('src')).toBe(replacementUrl)
+  })
+
+  it('uses the normalized email as the default avatar seed', async () => {
+    const user = createUser({ email: 'alice@example.com' })
+    const wrapper = mount(ProfileAvatarCard, { props: { user } })
+    const previewSrc = () => wrapper.get('[data-testid="profile-avatar-preview"]').attributes('src')
+    const originalSrc = previewSrc()
+
+    await wrapper.setProps({ user: { ...user, id: user.id + 1, email: ' ALICE@Example.com ' } })
+    expect(previewSrc()).toBe(originalSrc)
+
+    await wrapper.setProps({ user: { ...user, email: 'bob@example.com' } })
+    expect(previewSrc()).not.toBe(originalSrc)
+
+    await wrapper.setProps({ user: null })
+    const fallbackSrc = previewSrc()
+    await wrapper.setProps({ user: { ...user, email: ' ' } })
+    expect(previewSrc()).toBe(fallbackSrc)
+  })
+
   it('compresses an uploaded image that exceeds the 20KB target before saving', async () => {
     installAvatarCompressionMocks()
     const updatedUser = createUser({ avatar_url: 'data:image/webp;base64,Y29tcHJlc3NlZC1hdmF0YXI=' })
@@ -237,7 +276,7 @@ describe('ProfileAvatarCard', () => {
     expect(preview.attributes('src')).toBe('data:image/webp;base64,Y29tcHJlc3NlZC1hdmF0YXI=')
   })
 
-  it('deletes the current avatar', async () => {
+  it('restores the default avatar when removing a saved picture', async () => {
     const updatedUser = createUser({ avatar_url: null })
     updateProfileMock.mockResolvedValue(updatedUser)
     authStoreState.user = createUser({ avatar_url: 'https://cdn.example.com/old.png' })
@@ -257,6 +296,10 @@ describe('ProfileAvatarCard', () => {
 
     expect(updateProfileMock).toHaveBeenCalledWith({ avatar_url: '' })
     expect(authStoreState.user?.avatar_url).toBeNull()
-    expect(showSuccessMock).toHaveBeenCalledWith('Avatar removed')
+    expect(showSuccessMock).toHaveBeenCalledWith('Default avatar restored')
+
+    await wrapper.setProps({ user: authStoreState.user })
+    expect(wrapper.get('[data-testid="profile-avatar-preview"]').attributes('src')).toMatch(/^data:image\/svg\+xml;/)
+    expect(wrapper.get<HTMLButtonElement>('[data-testid="profile-avatar-delete"]').element.disabled).toBe(true)
   })
 })

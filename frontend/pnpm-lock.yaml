@@ -20,6 +20,12 @@ importers:
       '@airwallex/components-sdk':
         specifier: ^1.30.2
         version: 1.30.2
+      '@dicebear/core':
+        specifier: 11.0.0
+        version: 11.0.0
+      '@dicebear/styles':
+        specifier: 11.0.0
+        version: 11.0.0
       '@lobehub/icons':
         specifier: ^4.0.2
         version: 4.0.2(@lobehub/ui@4.9.2)(@types/react@19.2.7)(antd@6.1.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -334,6 +340,13 @@ packages:
   '@csstools/css-tokenizer@3.0.4':
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
+
+  '@dicebear/core@11.0.0':
+    resolution: {integrity: sha512-L0k5hMkpfyukn+Me5zF69+Gvo2Pvv/z1NXnQwNPrgN2gC2DQKp/yUNVmzs0dyOYquouHKvqzYPYtK4rulTg7yQ==}
+    engines: {node: '>=22.0.0'}
+
+  '@dicebear/styles@11.0.0':
+    resolution: {integrity: sha512-rVMdmfy0JTEFLZ8ad8/jqB6yFHQZiHogqHP1Ul68EZA9SEloJzlAMGGUxPrLiCvT98GA8Tu5LGAw9DZkJMJHrg==}
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -4771,6 +4784,10 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
 
   '@csstools/css-tokenizer@3.0.4': {}
+
+  '@dicebear/core@11.0.0': {}
+
+  '@dicebear/styles@11.0.0': {}
 
   '@dnd-kit/accessibility@3.1.1(react@19.2.3)':
     dependencies:

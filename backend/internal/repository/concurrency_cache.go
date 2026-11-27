@@ -703,6 +703,38 @@ func (c *concurrencyCache) GetAccountConcurrencyBatch(ctx context.Context, accou
 	return result, nil
 }
 
+func (c *concurrencyCache) ReadAccountConcurrencyBatch(ctx context.Context, accountIDs []int64) (map[int64]int, error) {
+	now, err := c.rdb.Time(ctx).Result()
+	if err != nil {
+		return nil, fmt.Errorf("redis TIME: %w", err)
+	}
+	// The admin count removes scores at or below the expiry thresholds.
+	slotMin := "(" + strconv.FormatInt(now.Unix()-int64(c.slotTTLSeconds), 10)
+	leaseMin := "(" + strconv.FormatInt(now.Unix()-liveLeaseTTLSeconds, 10)
+
+	type slotCounts struct {
+		regular *redis.IntCmd
+		live    *redis.IntCmd
+	}
+	pipe := c.rdb.Pipeline()
+	commands := make([]slotCounts, len(accountIDs))
+	for i, id := range accountIDs {
+		commands[i] = slotCounts{
+			regular: pipe.ZCount(ctx, accountSlotKey(id), slotMin, "+inf"),
+			live:    pipe.ZCount(ctx, liveAccountSlotKey(id), leaseMin, "+inf"),
+		}
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, fmt.Errorf("read account concurrency: %w", err)
+	}
+
+	result := make(map[int64]int, len(accountIDs))
+	for i, id := range accountIDs {
+		result[id] = int(commands[i].regular.Val() + commands[i].live.Val())
+	}
+	return result, nil
+}
+
 // User slot operations
 
 func (c *concurrencyCache) AcquireUserSlot(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {

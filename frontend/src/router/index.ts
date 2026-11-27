@@ -241,6 +241,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/account-pool-usage',
+    name: 'AccountPoolUsage',
+    component: () => import('@/views/user/AccountPoolUsageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Account Pool Usage',
+      titleKey: 'nav.accountPoolUsage',
+      descriptionKey: 'accountPoolUsage.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),

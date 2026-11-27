@@ -614,6 +614,23 @@ export default {
     }
   },
 
+  accountPoolUsage: {
+    description: '查看已开启调度的账号用量，按优先级从小到大排列。',
+    resetCredits: '重置卡',
+    noQuotaSample: '暂无配额数据',
+    empty: '暂无开启调度的账号',
+    loadFailed: '号池用量加载失败。',
+    windows: {
+      fiveHour: '5h',
+      sevenDay: '7d',
+      sevenDayFable: '7d Fable',
+      thirtyDay: '30d',
+      localDaily: '日限额',
+      localWeekly: '周限额',
+      localTotal: '总限额'
+    }
+  },
+
   // Available Channels (user-facing)
   availableChannels: {
     title: '可用渠道',
@@ -953,16 +970,17 @@ export default {
       title: '资料头像',
       description: '仅支持上传头像图片；静态图片会自动压缩到 20KB 以内后再保存。',
       uploadAction: '上传图片',
+      resetAction: '恢复默认头像',
       uploadHint: '上传图片时会自动压缩静态图片到 20KB 以内，GIF 需自行控制在 20KB 以内',
       uploadRequired: '请先上传头像图片',
       saveSuccess: '头像已更新',
-      deleteSuccess: '头像已删除',
+      deleteSuccess: '已恢复默认头像',
       invalidType: '请选择图片文件',
       gifTooLarge: 'GIF 头像必须在 20KB 以内',
       compressTooLarge: '无法将图片压缩到 20KB 以内，请换一张更小的图片',
       compressFailed: '压缩所选图片失败',
       readFailed: '读取所选图片失败',
-      emptyDeleteHint: '当前没有可删除的头像',
+      emptyDeleteHint: '当前已使用默认头像',
     },
     authBindings: {
       title: '登录方式绑定',

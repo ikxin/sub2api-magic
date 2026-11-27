@@ -783,7 +783,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
-import type { Account, AccountUsageInfo, GeminiCredentials, UsageProgress, WindowStats } from '@/types'
+import type { Account, AccountUsageInfo, GeminiCredentials, WindowStats } from '@/types'
+import { estimateWindowTotalCost } from '@/utils/accountUsage'
 import { buildAccountUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { enqueueUsageRequest } from '@/utils/usageLoadQueue'
 import { formatCompactNumber, formatDateTime } from '@/utils/format'
@@ -935,25 +936,6 @@ const hasOpenAIQuotaObservation = computed(() => {
   const windows = [usageInfo.value?.five_hour, usageInfo.value?.seven_day, usageInfo.value?.thirty_day]
   return windows.some(window => window && !window.utilization_unknown)
 })
-
-function estimateWindowTotalCost(window?: UsageProgress | null) {
-  const utilization = window?.utilization
-  const currentCost = window?.window_stats?.cost
-  if (
-    window?.utilization_unknown ||
-    typeof utilization !== 'number' ||
-    typeof currentCost !== 'number' ||
-    !Number.isFinite(utilization) ||
-    !Number.isFinite(currentCost) ||
-    utilization <= 0 ||
-    currentCost <= 0
-  ) {
-    return null
-  }
-
-  const estimate = (currentCost * 100) / utilization
-  return Number.isFinite(estimate) && estimate > 0 ? estimate : null
-}
 
 const openAIFiveHourEstimatedTotalCost = computed(() =>
   estimateWindowTotalCost(usageInfo.value?.five_hour)

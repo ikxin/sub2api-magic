@@ -122,15 +122,7 @@
             class="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-dark-800"
             :aria-label="t('common.userMenu')"
           >
-            <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-sm font-medium text-white shadow-sm">
-              <img
-                v-if="avatarUrl"
-                :src="avatarUrl"
-                :alt="displayName"
-                class="h-full w-full object-cover"
-              >
-              <span v-else>{{ userInitials }}</span>
-            </div>
+            <UserAvatar :email="user.email" :src="user.avatar_url" class="h-8 w-8 shadow-sm" />
             <div class="hidden text-left md:block">
               <div class="text-sm font-medium text-gray-900 dark:text-white">
                 {{ displayName }}
@@ -282,6 +274,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import UserAvatar from '@/components/common/UserAvatar.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
@@ -303,7 +296,6 @@ const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
-const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
 const totalBalance = computed(() => availableBalance.value + frozenBalance.value)
@@ -315,20 +307,6 @@ const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHe
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
   return !authStore.isSimpleMode && user.value?.role === 'admin'
-})
-
-const userInitials = computed(() => {
-  if (!user.value) return ''
-  // Prefer username, fallback to email
-  if (user.value.username) {
-    return user.value.username.substring(0, 2).toUpperCase()
-  }
-  if (user.value.email) {
-    // Get the part before @ and take first 2 chars
-    const localPart = user.value.email.split('@')[0]
-    return localPart.substring(0, 2).toUpperCase()
-  }
-  return ''
 })
 
 const displayName = computed(() => {

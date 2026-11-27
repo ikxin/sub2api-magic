@@ -13,20 +13,14 @@
     </div>
 
     <div :class="props.embedded ? 'space-y-3' : 'flex flex-col gap-5 px-6 py-6 sm:flex-row sm:items-start'">
-      <div
-        :class="props.embedded
-          ? 'flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-xl font-bold text-white shadow-lg shadow-primary-500/20'
-          : 'flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-3xl font-bold text-white shadow-lg shadow-primary-500/20'"
-      >
-        <img
-          v-if="avatarPreviewUrl"
-          data-testid="profile-avatar-preview"
-          :src="avatarPreviewUrl"
-          :alt="displayName"
-          class="h-full w-full object-cover"
-        >
-        <span v-else>{{ avatarInitial }}</span>
-      </div>
+      <UserAvatar
+        data-testid="profile-avatar-preview"
+        :email="user?.email"
+        :src="avatarPreviewUrl"
+        :alt="displayName"
+        class="shadow-lg shadow-primary-500/20"
+        :class="props.embedded ? 'h-16 w-16' : 'h-24 w-24'"
+      />
 
       <div :class="props.embedded ? 'space-y-3' : 'min-w-0 flex-1 space-y-4'">
         <div class="space-y-1">
@@ -67,10 +61,10 @@
             data-testid="profile-avatar-delete"
             type="button"
             class="btn btn-secondary btn-sm"
-            :disabled="avatarSaving"
+            :disabled="avatarSaving || !avatarPreviewUrl"
             @click="handleAvatarDelete"
           >
-            {{ t('common.delete') }}
+            {{ t('profile.avatar.resetAction') }}
           </button>
         </div>
       </div>
@@ -82,6 +76,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { userAPI } from '@/api'
+import UserAvatar from '@/components/common/UserAvatar.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
@@ -105,7 +100,6 @@ const avatarDraft = ref('')
 const avatarSaving = ref(false)
 
 const displayName = computed(() => props.user?.username?.trim() || props.user?.email?.trim() || t('profile.user'))
-const avatarInitial = computed(() => displayName.value.charAt(0).toUpperCase() || 'U')
 const avatarPreviewUrl = computed(() => avatarDraft.value.trim() || props.user?.avatar_url?.trim() || '')
 
 watch(
@@ -250,7 +244,7 @@ async function handleAvatarDelete() {
   if (avatarSaving.value) {
     return
   }
-  if (!avatarDraft.value.trim() && !props.user?.avatar_url?.trim()) {
+  if (!avatarPreviewUrl.value) {
     appStore.showError(t('profile.avatar.emptyDeleteHint'))
     return
   }

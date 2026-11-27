@@ -609,6 +609,23 @@ export default {
     }
   },
 
+  accountPoolUsage: {
+    description: 'View usage for accounts with scheduling enabled, ordered by ascending priority.',
+    resetCredits: 'Reset Cards',
+    noQuotaSample: 'No quota data',
+    empty: 'No accounts have scheduling enabled',
+    loadFailed: 'Could not load account pool usage.',
+    windows: {
+      fiveHour: '5h',
+      sevenDay: '7d',
+      sevenDayFable: '7d Fable',
+      thirtyDay: '30d',
+      localDaily: 'Daily cap',
+      localWeekly: 'Weekly cap',
+      localTotal: 'Total cap'
+    }
+  },
+
   // Available Channels (user-facing)
   availableChannels: {
     title: 'Available Channels',
@@ -949,16 +966,17 @@ export default {
       title: 'Profile Avatar',
       description: 'Upload an avatar image. Static uploads are compressed to 20KB before saving.',
       uploadAction: 'Upload image',
+      resetAction: 'Restore default avatar',
       uploadHint: 'Static uploads are compressed to 20KB when possible. GIF uploads must already be within 20KB.',
       uploadRequired: 'Upload an avatar image first',
       saveSuccess: 'Avatar updated',
-      deleteSuccess: 'Avatar removed',
+      deleteSuccess: 'Default avatar restored',
       invalidType: 'Please choose an image file',
       gifTooLarge: 'GIF avatars must already be 20KB or smaller',
       compressTooLarge: 'Unable to compress this image below 20KB. Try a smaller image.',
       compressFailed: 'Failed to compress the selected image.',
       readFailed: 'Failed to read the selected image.',
-      emptyDeleteHint: 'Avatar is already empty',
+      emptyDeleteHint: 'You are already using the default avatar',
     },
     authBindings: {
       title: 'Connected Sign-In Methods',

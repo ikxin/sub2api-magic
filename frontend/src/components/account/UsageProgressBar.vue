@@ -2,10 +2,10 @@
   <div>
     <!-- Window stats row (above progress bar) -->
     <div
-      v-if="windowStats && (windowStats.requests > 0 || windowStats.tokens > 0)"
+      v-if="hasWindowStats(windowStats)"
       class="mb-0.5 flex items-center"
     >
-      <div class="flex items-center gap-1.5 whitespace-nowrap text-[9px] text-gray-500 dark:text-gray-400">
+      <div class="usage-window-stats flex items-center gap-1.5 whitespace-nowrap text-[9px] text-gray-500 dark:text-gray-400">
         <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
           {{ formatRequests }} req / {{ formatTokens }} / ${{ formatAccountCost }}
         </span>
@@ -66,6 +66,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import type { WindowStats } from '@/types'
+import { hasWindowStats } from '@/utils/accountUsage'
 import { formatCompactNumber, formatDateTime } from '@/utils/format'
 
 const props = withDefaults(

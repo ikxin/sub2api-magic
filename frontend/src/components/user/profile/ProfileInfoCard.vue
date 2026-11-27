@@ -6,17 +6,11 @@
     >
       <div class="px-6 py-6 md:px-8">
         <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div
-            class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-primary-500 to-primary-600 text-2xl font-bold text-white shadow-lg shadow-primary-500/20"
-          >
-            <img
-              v-if="avatarUrl"
-              :src="avatarUrl"
-              :alt="displayName"
-              class="h-full w-full object-cover"
-            >
-            <span v-else>{{ avatarInitial }}</span>
-          </div>
+          <UserAvatar
+            :email="user?.email"
+            :src="user?.avatar_url"
+            class="h-20 w-20 shadow-lg shadow-primary-500/20"
+          />
 
           <div class="min-w-0 flex-1 space-y-5">
             <div class="space-y-3">
@@ -182,6 +176,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import UserAvatar from '@/components/common/UserAvatar.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ProfileAvatarCard from '@/components/user/profile/ProfileAvatarCard.vue'
 import ProfileEditForm from '@/components/user/profile/ProfileEditForm.vue'
@@ -232,7 +227,6 @@ function isEmailBound(user: User | null | undefined): boolean {
   return normalized ?? false
 }
 
-const avatarUrl = computed(() => props.user?.avatar_url?.trim() || '')
 const displayName = computed(() => props.user?.username?.trim() || props.user?.email?.trim() || t('profile.user'))
 const primaryEmailDisplay = computed(() => {
   const email = props.user?.email?.trim() || ''
@@ -244,7 +238,6 @@ const primaryEmailDisplay = computed(() => {
   }
   return email
 })
-const avatarInitial = computed(() => displayName.value.charAt(0).toUpperCase() || 'U')
 const memberSinceLabel = computed(() => {
   const raw = props.user?.created_at?.trim()
   if (!raw) {

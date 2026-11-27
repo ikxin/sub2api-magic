@@ -211,16 +211,7 @@
         >
           <template #cell-user="{ row }">
             <div class="flex items-center gap-2">
-              <div
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
-              >
-                <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
-                  {{ userColumnMode === 'email'
-                    ? (row.user?.email?.charAt(0).toUpperCase() || '?')
-                    : (row.user?.username?.charAt(0).toUpperCase() || '?')
-                  }}
-                </span>
-              </div>
+              <UserAvatar :email="row.user?.email" :src="row.user?.avatar_url" class="h-8 w-8" />
               <RouterLink
                 :to="{ path: '/admin/usage', query: { user_id: row.user_id } }"
                 class="rounded font-medium text-gray-900 hover:text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:text-white dark:hover:text-primary-400 dark:focus-visible:ring-offset-dark-800"
@@ -862,6 +853,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+import UserAvatar from '@/components/common/UserAvatar.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
   getRemainingDurationParts,

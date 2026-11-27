@@ -74,7 +74,7 @@ Top header with user info and actions.
 - User dropdown menu with:
   - Profile link
   - Logout button
-- User avatar with initials
+- User avatar with a DiceBear Clay default
 - Click-outside handling for dropdown
 - Responsive design
 

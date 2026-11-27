@@ -769,3 +769,18 @@ func (s *ConcurrencyService) GetAccountConcurrencyBatch(ctx context.Context, acc
 
 	return s.cache.GetAccountConcurrencyBatch(redisCtx, accountIDs)
 }
+
+type accountConcurrencyReader interface {
+	ReadAccountConcurrencyBatch(ctx context.Context, accountIDs []int64) (map[int64]int, error)
+}
+
+// ReadAccountConcurrencyBatch counts live slots without cleaning up expired slots.
+func (s *ConcurrencyService) ReadAccountConcurrencyBatch(ctx context.Context, accountIDs []int64) (map[int64]int, error) {
+	reader, ok := s.cache.(accountConcurrencyReader)
+	if !ok || len(accountIDs) == 0 {
+		return nil, nil
+	}
+	redisCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	return reader.ReadAccountConcurrencyBatch(redisCtx, accountIDs)
+}
