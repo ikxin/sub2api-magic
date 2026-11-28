@@ -16,6 +16,7 @@
       <UserAvatar
         data-testid="profile-avatar-preview"
         :email="user?.email"
+        :username="user?.username"
         :src="avatarPreviewUrl"
         :alt="displayName"
         class="shadow-lg shadow-primary-500/20"

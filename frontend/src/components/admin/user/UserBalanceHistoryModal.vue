@@ -5,7 +5,7 @@
       <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700">
         <!-- Row 1: avatar + email/username/created_at (left) + current balance (right) -->
         <div class="flex items-center gap-3">
-          <UserAvatar :email="user.email" :src="user.avatar_url" class="h-10 w-10" />
+          <UserAvatar :email="user.email" :username="user.username" :src="user.avatar_url" class="h-10 w-10" />
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <p class="truncate font-medium text-gray-900 dark:text-white">{{ user.email }}</p>

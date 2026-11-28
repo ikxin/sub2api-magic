@@ -211,7 +211,7 @@
         >
           <template #cell-user="{ row }">
             <div class="flex items-center gap-2">
-              <UserAvatar :email="row.user?.email" :src="row.user?.avatar_url" class="h-8 w-8" />
+              <UserAvatar :email="row.user?.email" :username="row.user?.username" :src="row.user?.avatar_url" class="h-8 w-8" />
               <RouterLink
                 :to="{ path: '/admin/usage', query: { user_id: row.user_id } }"
                 class="rounded font-medium text-gray-900 hover:text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:text-white dark:hover:text-primary-400 dark:focus-visible:ring-offset-dark-800"

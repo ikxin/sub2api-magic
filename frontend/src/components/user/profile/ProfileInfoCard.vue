@@ -8,6 +8,7 @@
         <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
           <UserAvatar
             :email="user?.email"
+            :username="user?.username"
             :src="user?.avatar_url"
             class="h-20 w-20 shadow-lg shadow-primary-500/20"
           />

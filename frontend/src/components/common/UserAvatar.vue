@@ -21,10 +21,12 @@ import { computed, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   email?: string | null
+  username?: string | null
   src?: string | null
   alt?: string
 }>(), {
   email: null,
+  username: null,
   src: null,
   alt: '',
 })
@@ -35,9 +37,12 @@ watch(customSrc, () => {
   customImageFailed.value = false
 })
 
-const defaultSrc = computed(() => new Avatar(clayStyle, {
-  seed: props.email?.trim().toLowerCase() || 'default',
-}).toDataUri())
+const defaultSrc = computed(() => {
+  const email = props.email?.trim().toLowerCase()
+  const username = props.username?.trim()
+  const seed = [email, username].filter(Boolean).join('+') || 'default'
+  return new Avatar(clayStyle, { seed }).toDataUri()
+})
 
 const imageSrc = computed(() => customSrc.value && !customImageFailed.value
   ? customSrc.value

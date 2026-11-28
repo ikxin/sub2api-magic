@@ -292,7 +292,7 @@
         >
           <template #cell-email="{ row, value }">
             <div class="flex items-center gap-2">
-              <UserAvatar :email="row.email" :src="row.avatar_url" class="h-8 w-8" />
+              <UserAvatar :email="row.email" :username="row.username" :src="row.avatar_url" class="h-8 w-8" />
               <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
             </div>
           </template>

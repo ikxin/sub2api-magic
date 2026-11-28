@@ -168,7 +168,12 @@
             :to="dashboardPath"
             class="inline-flex items-center gap-1.5 rounded-full bg-gray-900 py-1 pl-1 pr-2.5 transition-colors hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
           >
-            <UserAvatar :email="authStore.user?.email" :src="authStore.user?.avatar_url" class="h-5 w-5" />
+            <UserAvatar
+              :email="authStore.user?.email"
+              :username="authStore.user?.username"
+              :src="authStore.user?.avatar_url"
+              class="h-5 w-5"
+            />
             <span class="text-xs font-medium text-white">{{ t('home.dashboard') }}</span>
             <svg
               class="h-3 w-3 text-gray-400"

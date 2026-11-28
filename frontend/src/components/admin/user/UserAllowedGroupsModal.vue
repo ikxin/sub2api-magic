@@ -3,7 +3,7 @@
     <div v-if="user" class="space-y-6">
       <!-- 用户信息头部 -->
       <div class="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-primary-50 to-primary-100 p-5 dark:from-primary-900/30 dark:to-primary-800/20">
-        <UserAvatar :email="user.email" :src="user.avatar_url" class="h-14 w-14 shadow-sm" />
+        <UserAvatar :email="user.email" :username="user.username" :src="user.avatar_url" class="h-14 w-14 shadow-sm" />
         <div class="flex-1">
           <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ user.email }}</p>
           <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ t('admin.users.groupConfigHint', { email: user.email }) }}</p>

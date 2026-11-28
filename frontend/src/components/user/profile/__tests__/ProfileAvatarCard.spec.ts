@@ -185,7 +185,7 @@ describe('ProfileAvatarCard', () => {
     expect(decodeURIComponent(defaultSrc)).toContain('<dc:title>Clay</dc:title>')
 
     const avatarUrl = 'https://cdn.example.com/avatar.png'
-    await wrapper.setProps({ user: { ...user, username: 'new-name', avatar_url: avatarUrl } })
+    await wrapper.setProps({ user: { ...user, avatar_url: avatarUrl } })
     expect(preview().attributes('src')).toBe(avatarUrl)
 
     await preview().trigger('error')
@@ -196,14 +196,17 @@ describe('ProfileAvatarCard', () => {
     expect(preview().attributes('src')).toBe(replacementUrl)
   })
 
-  it('uses the normalized email as the default avatar seed', async () => {
-    const user = createUser({ email: 'alice@example.com' })
+  it('uses the normalized email and trimmed username as the default avatar seed', async () => {
+    const user = createUser({ username: 'Alice' })
     const wrapper = mount(ProfileAvatarCard, { props: { user } })
     const previewSrc = () => wrapper.get('[data-testid="profile-avatar-preview"]').attributes('src')
     const originalSrc = previewSrc()
 
-    await wrapper.setProps({ user: { ...user, id: user.id + 1, email: ' ALICE@Example.com ' } })
+    await wrapper.setProps({ user: { ...user, id: user.id + 1, email: ' ALICE@Example.com ', username: ' Alice ' } })
     expect(previewSrc()).toBe(originalSrc)
+
+    await wrapper.setProps({ user: { ...user, username: 'alice' } })
+    expect(previewSrc()).not.toBe(originalSrc)
 
     await wrapper.setProps({ user: { ...user, email: 'bob@example.com' } })
     expect(previewSrc()).not.toBe(originalSrc)
@@ -211,6 +214,10 @@ describe('ProfileAvatarCard', () => {
     await wrapper.setProps({ user: null })
     const fallbackSrc = previewSrc()
     await wrapper.setProps({ user: { ...user, email: ' ' } })
+    expect(previewSrc()).not.toBe(fallbackSrc)
+    await wrapper.setProps({ user: { ...user, username: ' ' } })
+    expect(previewSrc()).not.toBe(fallbackSrc)
+    await wrapper.setProps({ user: { ...user, email: ' ', username: ' ' } })
     expect(previewSrc()).toBe(fallbackSrc)
   })
 
