@@ -12,12 +12,6 @@
           <template #cell-name="{ row }">
             <div class="flex min-w-0 flex-col items-end gap-1 md:items-start">
               <span class="max-w-xs font-medium leading-5 text-gray-900 [overflow-wrap:anywhere] dark:text-white">{{ row.name }}</span>
-              <PlatformTypeBadge
-                :platform="row.platform"
-                :type="row.type"
-                :plan-type="row.plan_type"
-                :privacy-mode="row.privacy_mode"
-              />
               <time
                 v-if="row.expires_at"
                 :datetime="row.expires_at"
@@ -26,6 +20,14 @@
                 {{ t('admin.accounts.subscriptionExpires') }} {{ formatAccountExpiry(row.expires_at) }}
               </time>
             </div>
+          </template>
+          <template #cell-platform_type="{ row }">
+            <PlatformTypeBadge
+              :platform="row.platform"
+              :type="row.type"
+              :plan-type="row.plan_type"
+              :privacy-mode="row.privacy_mode"
+            />
           </template>
           <template #cell-capacity="{ row }">
             <AccountConcurrencyBadge :current="row.current_concurrency" :max="row.concurrency" />
@@ -67,6 +69,7 @@
                     :color="windowColors[window.kind as AccountPoolUsageWindowKind]"
                     class="leading-5"
                     label-width="auto"
+                    window-stats-position="inline"
                   />
                 </div>
               </template>
@@ -124,6 +127,7 @@ const now = useNow({ interval: 60_000 })
 
 const columns = computed(() => [
   { key: 'name', label: t('admin.accounts.columns.name') },
+  { key: 'platform_type', label: t('admin.accounts.columns.platformType') },
   { key: 'capacity', label: t('admin.accounts.columns.capacity') },
   { key: 'status', label: t('common.status') },
   { key: 'windows', label: t('admin.accounts.columns.usageWindows') },

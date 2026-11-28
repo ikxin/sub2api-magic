@@ -1,36 +1,44 @@
 <template>
-  <div>
-    <!-- Window stats row (above progress bar) -->
+  <div
+    :class="[
+      'usage-progress-container',
+      windowStatsPosition === 'inline'
+        ? 'usage-progress-inline flex min-w-0 flex-wrap items-center gap-2'
+        : ''
+    ]"
+  >
+    <!-- Window stats row. Inline mode keeps the stats beside the corresponding window. -->
     <div
       v-if="hasWindowStats(windowStats)"
-      class="mb-0.5 flex items-center"
+      :class="[
+        'usage-window-stats flex items-center gap-1.5 whitespace-nowrap text-[9px] text-gray-500 dark:text-gray-400',
+        windowStatsPosition === 'inline' ? 'order-2 min-w-0' : 'order-1 mb-0.5'
+      ]"
     >
-      <div class="usage-window-stats flex items-center gap-1.5 whitespace-nowrap text-[9px] text-gray-500 dark:text-gray-400">
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
-          {{ formatRequests }} req / {{ formatTokens }} / ${{ formatAccountCost }}
-        </span>
-        <!-- 用户侧费用暂不展示。
-        <span
-          v-if="windowStats?.user_cost != null"
-          class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
-          :title="t('usage.userBilled')"
-        >
-          U ${{ formatUserCost }}
-        </span>
-        -->
-        <span
-          v-if="estimatedTotalCost != null"
-          data-test="estimated-total-cost"
-          class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
-          :title="t('admin.accounts.usageWindow.estimatedTotalCostTooltip')"
-        >
-          {{ t('admin.accounts.usageWindow.estimatedTotalCost', { cost: estimatedTotalCost.toFixed(2) }) }}
-        </span>
-      </div>
+      <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
+        {{ formatRequests }} req / {{ formatTokens }} / ${{ formatAccountCost }}
+      </span>
+      <!-- 用户侧费用暂不展示。
+      <span
+        v-if="windowStats?.user_cost != null"
+        class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
+        :title="t('usage.userBilled')"
+      >
+        U ${{ formatUserCost }}
+      </span>
+      -->
+      <span
+        v-if="estimatedTotalCost != null"
+        data-test="estimated-total-cost"
+        class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
+        :title="t('admin.accounts.usageWindow.estimatedTotalCostTooltip')"
+      >
+        {{ t('admin.accounts.usageWindow.estimatedTotalCost', { cost: estimatedTotalCost.toFixed(2) }) }}
+      </span>
     </div>
 
     <!-- Progress bar row -->
-    <div class="flex items-center gap-1">
+    <div :class="['flex items-center gap-1', windowStatsPosition === 'inline' ? 'order-1 shrink-0' : 'order-2']">
       <!-- Label badge (label-width: fixed = 定宽居中, auto = 限宽截断左对齐) -->
       <span :class="[labelSizeClass, labelClass]">
         {{ label }}
@@ -80,10 +88,11 @@ const props = withDefaults(
     estimatedTotalCost?: number | null
     showNowWhenIdle?: boolean
     remainingCapacity?: boolean
+    windowStatsPosition?: 'above' | 'inline'
     /** fixed: 定宽居中徽章（账号页纵向对齐）；auto: 限宽截断左对齐（监控页组合标签） */
     labelWidth?: 'fixed' | 'auto'
   }>(),
-  { labelWidth: 'fixed' }
+  { labelWidth: 'fixed', windowStatsPosition: 'above' }
 )
 
 const { t } = useI18n()
