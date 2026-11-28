@@ -13,11 +13,13 @@
 - 分组逐行换行，平台名称不折行，批量栏仅在勾选账号后显示
 - OpenAI Free 显示月度用量，付费账号保留 5h / 7d，各窗口增加“预计”额度
 - 账号用量合并简写，隐藏用户费用、点数和邀请，保留配额查询与重置
+- 用户端号池用量页展示账号并发、状态和配额窗口，窗口用量与进度条并排显示
+- 默认头像按邮箱生成，优先显示用户自定义头像
 - 统计支持精确时间与最近 24 小时范围，缓存率统一按全部输入 Token 计算
 
 ## 构建与同步
 
-2026-11-26 同步至官方 `main` 的 [`81ce8356d`](https://github.com/Wei-Shaw/sub2api/commit/81ce8356d9a289411987bdefeddc9710340d6d52)，版本号为 `v0.2.25`。
+2026-11-28 同步至官方 `main` 的 [`f53641e53`](https://github.com/Wei-Shaw/sub2api/commit/f53641e53c8da5efd959595c1eac696bdc0a3a57)，版本号为 `v0.2.26`。
 
 ```bash
 docker build --push -t ikxin/sub2api-magic:latest .

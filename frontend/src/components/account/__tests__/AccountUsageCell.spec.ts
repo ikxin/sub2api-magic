@@ -114,6 +114,52 @@ const cnUsageCellStubs = {
 }
 
 describe('AccountUsageCell', () => {
+  it('shows small nonzero Antigravity quota usage', async () => {
+    getUsage.mockResolvedValue({
+      antigravity_quota: {
+        'claude-sonnet-4-5': { utilization: 0.021136, reset_time: '2026-10-21T01:00:00Z' }
+      }
+    })
+    const wrapper = mount(AccountUsageCell, {
+      props: { account: makeAccount({ id: 6401 }) },
+      global: { stubs: { AccountQuotaInfo: true } }
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('0.02%')
+    wrapper.unmount()
+  })
+
+  it('shows compact Antigravity local usage and hides user cost when the upstream query fails', async () => {
+    getUsage.mockRejectedValue(new Error('upstream quota unavailable'))
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: makeAccount({ id: 6403 }),
+        todayStats: { requests: 56, tokens: 5715898, cost: 2.6253228, user_cost: 0.003426 }
+      },
+      global: { stubs: { AccountQuotaInfo: true } }
+    })
+    await flushPromises()
+    expect(getUsage).toHaveBeenCalledWith(6403)
+    expect(wrapper.get('[title="usage.accountBilled"]').text()).toBe('56 req / 5.7M / $2.63')
+    expect(wrapper.find('[title="usage.userBilled"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('renders zero local usage without inventing a user cost', async () => {
+    getUsage.mockResolvedValue({})
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: makeAccount({ id: 6402 }),
+        todayStats: { requests: 0, tokens: 0, cost: 0 }
+      },
+      global: { stubs: { AccountQuotaInfo: true } }
+    })
+    await flushPromises()
+    expect(wrapper.get('[title="usage.accountBilled"]').text()).toBe('0 req / 0 / $0.00')
+    expect(wrapper.find('[title="usage.userBilled"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it.each([
     ['anthropic', 'oauth'], ['anthropic', 'setup-token'], ['gemini', 'oauth'], ['gemini', 'apikey']
   ] as const)('refreshes %s %s snapshots without forcing upstream reads and reuses the new cache', async (platform, type) => {

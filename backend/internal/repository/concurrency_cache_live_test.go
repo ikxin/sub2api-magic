@@ -79,7 +79,8 @@ func TestReadAccountConcurrencyBatchCountsUnexpiredSlotsWithoutRemovingAny(t *te
 	redisServer.SetTime(now)
 	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
 	t.Cleanup(func() { _ = client.Close() })
-	cache := NewConcurrencyCache(client, 15, 900).(*concurrencyCache)
+	cache, ok := NewConcurrencyCache(client, 15, 900).(*concurrencyCache)
+	require.True(t, ok)
 
 	accountID := int64(10)
 	regular := accountSlotKey(accountID)
